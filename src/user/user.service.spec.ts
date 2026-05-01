@@ -51,7 +51,7 @@ describe('UserService', () => {
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
       mockUserRepository.save.mockResolvedValue();
 
-      const result = await service.signUp(createUserDto);
+      await service.signUp(createUserDto);
 
       expect(bcrypt.hash).toHaveBeenCalledWith(createUserDto.password, 10);
       expect(mockUserRepository.save).toHaveBeenCalledWith({
@@ -62,20 +62,20 @@ describe('UserService', () => {
   });
 
   describe('findAll', () => {
-    it('should return an array of user DTOs', async () => {
+    it('should return an array of users', async () => {
       const mockUsers = [
         {
           id: 1,
           email: 'user1@test.com',
           name: 'Maria',
-          surnmame: 'Marie',
+          surname: 'Marie',
           birthday: new Date('1998-01-01'),
         },
         {
           id: 2,
           email: 'user2@test.com',
           name: 'Mario',
-          surnmame: 'Marie',
+          surname: 'Marie',
           birthday: new Date('1999-01-01'),
         },
       ];
@@ -101,7 +101,7 @@ describe('UserService', () => {
   });
 
   describe('findOne', () => {
-    it('should return a user DTO by id', async () => {
+    it('should return a user by id', async () => {
       const mockUser = {
         id: 1,
         email: 'user@test.com',
@@ -130,7 +130,7 @@ describe('UserService', () => {
   });
 
   describe('findOneByEmail', () => {
-    it('should return a user entity by email', async () => {
+    it('should return a user by email', async () => {
       const mockUser = {
         id: 1,
         email: 'user@test.com',
