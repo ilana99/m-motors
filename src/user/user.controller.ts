@@ -5,18 +5,31 @@ import {
   Delete,
   HttpException,
   HttpStatus,
+  UseGuards,
+  Logger,
 } from '@nestjs/common';
 import { UserService } from './user.service';
+import { BaseUserDto } from './dto/base-user.dto';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from './role.enum';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
+@UseGuards(AuthGuard, RolesGuard)
 @Controller('user')
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
+
   constructor(private readonly userService: UserService) {}
 
+  @Roles(UserRole.Employee)
   @Get('findAll')
-  async findAll() {
+  async findAll(): Promise<BaseUserDto[]> {
     try {
+      this.logger.log('Received user find all request');
       return await this.userService.findAll();
     } catch (error) {
+      this.logger.log('Error on user find all request');
       throw new HttpException(
         {
           status: HttpStatus.NOT_FOUND,
@@ -30,11 +43,14 @@ export class UserController {
     }
   }
 
+  @Roles(UserRole.Employee)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string): Promise<BaseUserDto> {
     try {
+      this.logger.log('Received user find one request');
       return await this.userService.findOne(+id);
     } catch (error) {
+      this.logger.log('Error on user find one request');
       throw new HttpException(
         {
           status: HttpStatus.NOT_FOUND,
@@ -48,12 +64,15 @@ export class UserController {
     }
   }
 
+  @Roles(UserRole.Employee)
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string): Promise<string> {
     try {
+      this.logger.log('Received user delete request');
       await this.userService.remove(+id);
       return `User with id ${id} removed successfully`;
     } catch (error) {
+      this.logger.log('Error on user delete request');
       throw new HttpException(
         {
           status: HttpStatus.NOT_FOUND,

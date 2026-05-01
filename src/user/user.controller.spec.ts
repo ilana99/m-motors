@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { HttpException } from '@nestjs/common';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 describe('UserController', () => {
   let controller: UserController;
@@ -15,8 +17,18 @@ describe('UserController', () => {
     };
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useValue: mockUserService }],
-    }).compile();
+      providers: [
+        {
+          provide: UserService,
+          useValue: mockUserService,
+        },
+      ],
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<UserController>(UserController);
   });
@@ -37,8 +49,10 @@ describe('UserController', () => {
   it('should not return all users and throw error', async () => {
     mockUserService.findAll.mockRejectedValue(new Error(''));
 
-    await expect(controller.findAll()).rejects.toThrow(HttpException);
-    await expect(controller.findAll()).rejects.toHaveProperty('status', 404);
+    const result = controller.findAll();
+
+    await expect(result).rejects.toThrow(HttpException);
+    await expect(result).rejects.toHaveProperty('status', 404);
   });
 
   it('should find one user by id', async () => {
@@ -54,8 +68,10 @@ describe('UserController', () => {
   it('should not find one user by id and throw error', async () => {
     mockUserService.findOne.mockRejectedValue(new Error(''));
 
-    await expect(controller.findOne('1')).rejects.toThrow(HttpException);
-    await expect(controller.findOne('1')).rejects.toHaveProperty('status', 404);
+    const result = controller.findOne('1');
+
+    await expect(result).rejects.toThrow(HttpException);
+    await expect(result).rejects.toHaveProperty('status', 404);
   });
 
   it('should remove one user by id', async () => {
@@ -68,7 +84,9 @@ describe('UserController', () => {
   it('should not remove one user by id and throw error', async () => {
     mockUserService.remove.mockRejectedValue(new Error(''));
 
-    await expect(controller.remove('1')).rejects.toThrow(HttpException);
-    await expect(controller.remove('1')).rejects.toHaveProperty('status', 404);
+    const result = controller.remove('1');
+
+    await expect(result).rejects.toThrow(HttpException);
+    await expect(result).rejects.toHaveProperty('status', 404);
   });
 });

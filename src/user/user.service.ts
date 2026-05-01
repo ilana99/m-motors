@@ -13,7 +13,7 @@ export class UserService {
     private userRepository: Repository<UserEntity>,
   ) {}
 
-  async signUp(createUserDto: CreateUserDto) {
+  async signUp(createUserDto: CreateUserDto): Promise<void> {
     const saltOrRounds = 10;
     const hash = await bcrypt.hash(createUserDto.password, saltOrRounds);
     const createUserDtoWithHash = { ...createUserDto, password: hash };
@@ -52,7 +52,7 @@ export class UserService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: number): Promise<UserEntity> {
     const user = await this.userRepository.findOneOrFail({
       where: { id: id },
     });
