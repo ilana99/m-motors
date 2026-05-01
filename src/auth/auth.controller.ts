@@ -21,7 +21,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   @Post('signup')
   async signUp(@Body() createUserDto: CreateUserDto): Promise<void> {
@@ -69,14 +69,37 @@ export class AuthController {
     }
   }
 
-  @Post('login')
-  async login(
+  @Post('loginUser')
+  async loginUser(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
+    return this.loginWithRole(loginDto, res, UserRole.User);
+  }
+
+  @Post('loginEmployee')
+  async loginEmployee(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    return this.loginWithRole(loginDto, res, UserRole.Employee);
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response): void {
+    this.logger.log('Received user logout request');
+    res.clearCookie('access_token');
+    return;
+  }
+
+  private async loginWithRole(
+    loginDto: LoginDto,
+    res: Response,
+    role: UserRole,
+  ): Promise<void> {
     try {
-      this.logger.log('Received user login request');
-      const token = await this.authService.login(loginDto);
+      this.logger.log(`Received login request`);
+      const token = await this.authService.login(loginDto, role);
 
       res.cookie('access_token', token, {
         httpOnly: true,
@@ -84,7 +107,7 @@ export class AuthController {
 
       return;
     } catch (error) {
-      this.logger.log('Error on user login reqest');
+      this.logger.log(`Error on login request`);
       throw new HttpException(
         {
           status: HttpStatus.UNAUTHORIZED,
@@ -96,12 +119,5 @@ export class AuthController {
         },
       );
     }
-  }
-
-  @Post('logout')
-  logout(@Res({ passthrough: true }) res: Response): void {
-    this.logger.log('Received user logout request');
-    res.clearCookie('access_token');
-    return;
   }
 }
