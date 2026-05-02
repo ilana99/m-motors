@@ -1,25 +1,39 @@
 import {
   Body,
+  Get,
   Post,
   Controller,
   HttpException,
   HttpStatus,
+  Req,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/role.enum';
+import { AuthGuard } from './guards/auth.guard';
+
+type AuthenticatedRequest = Request & {
+  user: {
+    sub: number;
+    email: string;
+    role: UserRole;
+  };
+};
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   @Post('signup')
-  async signUp(@Body() createUserDto: CreateUserDto) {
+  async signUp(@Body() createUserDto: CreateUserDto): Promise<void> {
     try {
       return await this.userService.signUp({
         ...createUserDto,
@@ -40,7 +54,7 @@ export class AuthController {
   }
 
   @Post('signupEmployee')
-  async signUpEmployee(@Body() createUserDto: CreateUserDto) {
+  async signUpEmployee(@Body() createUserDto: CreateUserDto): Promise<void> {
     try {
       return await this.userService.signUp({
         ...createUserDto,
@@ -60,10 +74,47 @@ export class AuthController {
     }
   }
 
-  @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  @Post('loginUser')
+  async loginUser(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    return this.loginWithRole(loginDto, res, UserRole.User);
+  }
+
+  @Post('loginEmployee')
+  async loginEmployee(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    return this.loginWithRole(loginDto, res, UserRole.Employee);
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response): void {
+    res.clearCookie('access_token');
+    return;
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard)
+  me(@Req() req: AuthenticatedRequest): AuthenticatedRequest['user'] {
+    return req.user;
+  }
+
+  private async loginWithRole(
+    loginDto: LoginDto,
+    res: Response,
+    role: UserRole,
+  ): Promise<void> {
     try {
-      return await this.authService.login(loginDto);
+      const token = await this.authService.login(loginDto, role);
+
+      res.cookie('access_token', token, {
+        httpOnly: true,
+      });
+
+      return;
     } catch (error) {
       throw new HttpException(
         {

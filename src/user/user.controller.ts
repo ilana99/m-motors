@@ -5,15 +5,23 @@ import {
   Delete,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
+import { BaseUserDto } from './dto/base-user.dto';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from './role.enum';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
+@UseGuards(AuthGuard, RolesGuard)
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @Roles(UserRole.Employee)
   @Get('findAll')
-  async findAll() {
+  async findAll(): Promise<BaseUserDto[]> {
     try {
       return await this.userService.findAll();
     } catch (error) {
@@ -30,8 +38,9 @@ export class UserController {
     }
   }
 
+  @Roles(UserRole.Employee)
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string): Promise<BaseUserDto> {
     try {
       return await this.userService.findOne(+id);
     } catch (error) {
@@ -48,8 +57,9 @@ export class UserController {
     }
   }
 
+  @Roles(UserRole.Employee)
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string): Promise<string> {
     try {
       await this.userService.remove(+id);
       return `User with id ${id} removed successfully`;
