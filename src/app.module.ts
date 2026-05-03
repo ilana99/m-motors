@@ -6,6 +6,8 @@ import { UserModule } from './user/user.module';
 import { UserEntity } from './user/entities/user.entity';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { CarsModule } from './cars/cars.module';
+import { CarEntity } from './cars/entities/car.entity';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -18,11 +20,12 @@ const isProd = process.env.NODE_ENV === 'production';
       type: 'postgres',
       url: process.env.SUPABASE_URL,
       ssl: isProd ? { rejectUnauthorized: false } : false,
-      entities: [UserEntity],
+      entities: [UserEntity, CarEntity],
       synchronize: true,
     }),
     UserModule,
     AuthModule,
+    CarsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
