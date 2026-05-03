@@ -110,9 +110,12 @@ describe('AuthController', () => {
         cookie: jest.fn().mockReturnThis(),
       } as unknown as Response<Response>;
 
-      await controller.login(loginDto, mockRes);
+      await controller.loginUser(loginDto, mockRes);
 
-      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
+      expect(mockAuthService.login).toHaveBeenCalledWith(
+        loginDto,
+        UserRole.User,
+      );
       expect(mockRes.cookie).toHaveBeenCalledWith('access_token', mockToken, {
         httpOnly: true,
       });
@@ -125,7 +128,7 @@ describe('AuthController', () => {
 
       mockAuthService.login.mockRejectedValue(new Error());
 
-      const result = controller.login(loginDto, mockRes);
+      const result = controller.loginUser(loginDto, mockRes);
 
       await expect(result).rejects.toThrow(HttpException);
       expect(mockRes.cookie).not.toHaveBeenCalled();

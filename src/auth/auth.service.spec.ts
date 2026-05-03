@@ -62,7 +62,7 @@ describe('AuthService', () => {
       const result = await service.login({
         email: 'user@test.com',
         password: 'password123',
-      });
+      }, UserRole.User);
 
       expect(result).toEqual(mockToken);
       expect(userService.findOneByEmail).toHaveBeenCalledWith('user@test.com');
@@ -85,7 +85,7 @@ describe('AuthService', () => {
         service.login({
           email: 'user@test.com',
           password: 'wrong_password',
-        }),
+        }, UserRole.User),
       ).rejects.toThrow();
 
       expect(jwtService.signAsync).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe('AuthService', () => {
         service.login({
           email: 'nonexistent@test.com',
           password: 'password123',
-        }),
+        }, UserRole.User),
       ).rejects.toThrow();
 
       expect(jwtService.signAsync).not.toHaveBeenCalled();
