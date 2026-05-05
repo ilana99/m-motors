@@ -9,21 +9,14 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/role.enum';
 import { AuthGuard } from './guards/auth.guard';
-
-type AuthenticatedRequest = Request & {
-  user: {
-    sub: number;
-    email: string;
-    role: UserRole;
-  };
-};
+import { AuthenticatedRequest } from './type/authenticated-request.type';
 
 @Controller('auth')
 export class AuthController {

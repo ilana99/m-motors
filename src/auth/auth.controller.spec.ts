@@ -6,6 +6,7 @@ import { HttpException } from '@nestjs/common';
 import { UserRole } from '../user/role.enum';
 import { Response } from 'express';
 import { CreateUserDto } from '../user/dto/create-user.dto';
+import { JwtService } from '@nestjs/jwt';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -51,6 +52,12 @@ describe('AuthController', () => {
         {
           provide: UserService,
           useValue: mockUserService,
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            verifyAsync: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -118,6 +125,9 @@ describe('AuthController', () => {
       );
       expect(mockRes.cookie).toHaveBeenCalledWith('access_token', mockToken, {
         httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
       });
     });
 
