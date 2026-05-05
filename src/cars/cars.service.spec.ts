@@ -1,0 +1,421 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { CarsService } from './cars.service';
+import { CarEntity } from './entities/car.entity';
+import { baseCarDto } from './dto/base-car.dto';
+import { Service } from './service.enum';
+import { SupabaseStorageService } from '../supabase-storage/supabase-storage.service';
+
+type MockCarRepository = {
+  save: jest.Mock;
+  find: jest.Mock;
+  findOneOrFail: jest.Mock;
+  remove: jest.Mock;
+};
+
+type MockSupabaseStorageService = {
+  deleteFile: jest.Mock;
+  getPathFromUrl: jest.Mock;
+};
+
+describe('CarsService', () => {
+  let service: CarsService;
+  let mockCarRepository: MockCarRepository;
+  let mockSupabaseStorageService: MockSupabaseStorageService;
+  const genesisGv80Image =
+    'https://example.supabase.co/storage/v1/object/public/images/cars/genesis-gv80.jpg';
+  const genesisGv80SaleImage =
+    'https://example.supabase.co/storage/v1/object/public/images/cars/genesis-gv80-sale.jpg';
+  const oldImage =
+    'https://example.supabase.co/storage/v1/object/public/images/cars/genesis-gv80-old.jpg';
+  const newImage =
+    'https://example.supabase.co/storage/v1/object/public/images/cars/genesis-gv80-new.jpg';
+  const deleteImage =
+    'https://example.supabase.co/storage/v1/object/public/images/cars/genesis-gv80-delete.jpg';
+
+  beforeEach(async () => {
+    mockCarRepository = {
+      save: jest.fn(),
+      find: jest.fn(),
+      findOneOrFail: jest.fn(),
+      remove: jest.fn(),
+    };
+    mockSupabaseStorageService = {
+      deleteFile: jest.fn(),
+      getPathFromUrl: jest.fn((url: string) => {
+        try {
+          const pathname = new URL(url).pathname;
+          return pathname
+            .replace('/storage/v1/object/public/images/', '')
+            .replace(/^\/+/, '');
+        } catch {
+          return url.replace(/^\/+/, '');
+        }
+      }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CarsService,
+        {
+          provide: getRepositoryToken(CarEntity),
+          useValue: mockCarRepository,
+        },
+        {
+          provide: SupabaseStorageService,
+          useValue: mockSupabaseStorageService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<CarsService>(CarsService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    it('should create a leasing car successfully', async () => {
+      const createCarDto = {
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [genesisGv80Image],
+      };
+      const savedCar = { id: 1, ...createCarDto, service: Service.Leasing };
+
+      mockCarRepository.save.mockResolvedValue(savedCar);
+
+      const result: unknown = await service.create(createCarDto);
+
+      expect(mockCarRepository.save).toHaveBeenCalledWith({
+        ...createCarDto,
+        service: Service.Leasing,
+      });
+      expect(result).toEqual(savedCar);
+    });
+
+    it('should create a sale car successfully', async () => {
+      const createCarDto = {
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '42000.00',
+        service: Service.Sale,
+        images: [genesisGv80SaleImage],
+      };
+      const savedCar = { id: 2, ...createCarDto, service: Service.Sale };
+
+      mockCarRepository.save.mockResolvedValue(savedCar);
+
+      const result: unknown = await service.create(createCarDto);
+
+      expect(mockCarRepository.save).toHaveBeenCalledWith({
+        ...createCarDto,
+        service: Service.Sale,
+      });
+      expect(result).toEqual(savedCar);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return an array of cars', async () => {
+      const mockCars = [
+        {
+          id: 1,
+          brand: 'Genesis',
+          model: 'GV80',
+          price: '75000.00',
+          service: Service.Leasing,
+          images: [genesisGv80Image],
+        },
+        {
+          id: 2,
+          brand: 'Genesis',
+          model: 'GV80',
+          price: '42000.00',
+          service: Service.Sale,
+          images: [genesisGv80SaleImage],
+        },
+      ];
+
+      mockCarRepository.find.mockResolvedValue(mockCars);
+
+      const result = await service.findAll();
+
+      expect(mockCarRepository.find).toHaveBeenCalled();
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(baseCarDto);
+      expect(result[0].id).toBe('1');
+      expect(result[0].brand).toBe('Genesis');
+      expect(result[0].model).toBe('GV80');
+      expect(result[1].service).toBe(Service.Sale);
+    });
+
+    it('should return an empty array when no cars exist', async () => {
+      mockCarRepository.find.mockResolvedValue([]);
+
+      const result = await service.findAll();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findAllByService', () => {
+    it('should return cars by service', async () => {
+      const mockCars = [
+        {
+          id: 1,
+          brand: 'Genesis',
+          model: 'GV80',
+          price: '75000.00',
+          service: Service.Leasing,
+          images: [genesisGv80Image],
+        },
+      ];
+
+      mockCarRepository.find.mockResolvedValue(mockCars);
+
+      const result = await service.findAllByService('Leasing');
+
+      expect(mockCarRepository.find).toHaveBeenCalledWith({
+        where: { service: Service.Leasing },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBeInstanceOf(baseCarDto);
+      expect(result[0].service).toBe(Service.Leasing);
+    });
+
+    it('should throw an error when service is invalid', async () => {
+      await expect(service.findAllByService('Rental')).rejects.toThrow('');
+      expect(mockCarRepository.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return a car by id', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [genesisGv80Image],
+      };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+
+      const result = await service.findOne(1);
+
+      expect(mockCarRepository.findOneOrFail).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+      expect(result).toBeInstanceOf(baseCarDto);
+      expect(result.id).toBe('1');
+      expect(result.brand).toBe('Genesis');
+      expect(result.model).toBe('GV80');
+    });
+
+    it('should throw an error when car is not found', async () => {
+      mockCarRepository.findOneOrFail.mockRejectedValue(new Error(''));
+
+      await expect(service.findOne(999)).rejects.toThrow('');
+    });
+  });
+
+  describe('update', () => {
+    it('should update a car by id', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [oldImage],
+      };
+      const updateCarDto = {
+        brand: 'Genesis',
+        images: [newImage],
+      };
+      const updatedCar = {
+        ...mockCar,
+        brand: 'Genesis',
+        images: [oldImage, newImage],
+      };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+      mockCarRepository.save.mockResolvedValue(updatedCar);
+
+      const result = await service.update(1, updateCarDto);
+
+      expect(mockCarRepository.findOneOrFail).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+      expect(mockCarRepository.save).toHaveBeenCalledWith(updatedCar);
+      expect(result).toEqual(updatedCar);
+    });
+
+    it('should throw an error when car to update is not found', async () => {
+      mockCarRepository.findOneOrFail.mockRejectedValue(new Error(''));
+
+      await expect(service.update(999, { brand: 'Genesis' })).rejects.toThrow(
+        '',
+      );
+    });
+  });
+
+  describe('updateService', () => {
+    it('should update a car service by id', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [],
+      };
+      const updatedCar = { ...mockCar, service: Service.Sale };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+      mockCarRepository.save.mockResolvedValue(updatedCar);
+
+      const result = await service.updateService(1, Service.Sale);
+
+      expect(mockCarRepository.findOneOrFail).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+      expect(mockCarRepository.save).toHaveBeenCalledWith(updatedCar);
+      expect(result).toEqual(updatedCar);
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a car by id', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [],
+      };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+      mockCarRepository.remove.mockResolvedValue(mockCar);
+
+      const result = await service.remove(1);
+
+      expect(mockCarRepository.findOneOrFail).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+      expect(mockCarRepository.remove).toHaveBeenCalledWith(mockCar);
+      expect(result).toEqual(mockCar);
+    });
+
+    it('should throw an error when car to remove is not found', async () => {
+      mockCarRepository.findOneOrFail.mockRejectedValue(new Error(''));
+
+      await expect(service.remove(999)).rejects.toThrow('');
+    });
+  });
+
+  describe('deleteImage', () => {
+    it('should delete an image from a car by id', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [oldImage, deleteImage],
+      };
+      const savedCar = { ...mockCar, images: [oldImage] };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+      mockCarRepository.save.mockResolvedValue(savedCar);
+      mockSupabaseStorageService.deleteFile.mockResolvedValue(undefined);
+
+      const result = await service.deleteImage(
+        1,
+        'cars/genesis-gv80-delete.jpg',
+      );
+
+      expect(mockCarRepository.findOneOrFail).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+      expect(mockCarRepository.save).toHaveBeenCalledWith(savedCar);
+      expect(mockSupabaseStorageService.deleteFile).toHaveBeenCalledWith(
+        deleteImage,
+      );
+      expect(result).toEqual(savedCar);
+    });
+
+    it('should delete a Supabase image when the full URL is provided', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [oldImage, deleteImage],
+      };
+      const savedCar = { ...mockCar, images: [oldImage] };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+      mockCarRepository.save.mockResolvedValue(savedCar);
+      mockSupabaseStorageService.deleteFile.mockResolvedValue(undefined);
+
+      const result = await service.deleteImage(1, deleteImage);
+
+      expect(mockCarRepository.save).toHaveBeenCalledWith(savedCar);
+      expect(mockSupabaseStorageService.deleteFile).toHaveBeenCalledWith(
+        deleteImage,
+      );
+      expect(result).toEqual(savedCar);
+    });
+
+    it('should delete a Supabase image when only the storage path is provided', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [genesisGv80Image],
+      };
+      const savedCar = { ...mockCar, images: [] };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+      mockCarRepository.save.mockResolvedValue(savedCar);
+      mockSupabaseStorageService.deleteFile.mockResolvedValue(undefined);
+
+      const result = await service.deleteImage(1, 'cars/genesis-gv80.jpg');
+
+      expect(mockCarRepository.save).toHaveBeenCalledWith(savedCar);
+      expect(mockSupabaseStorageService.deleteFile).toHaveBeenCalledWith(
+        genesisGv80Image,
+      );
+      expect(result).toEqual(savedCar);
+    });
+
+    it('should throw an error when image does not belong to the car', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [oldImage],
+      };
+
+      mockCarRepository.findOneOrFail.mockResolvedValue(mockCar);
+
+      await expect(
+        service.deleteImage(1, 'cars/genesis-gv80-missing.jpg'),
+      ).rejects.toThrow('');
+      expect(mockCarRepository.save).not.toHaveBeenCalled();
+      expect(mockSupabaseStorageService.deleteFile).not.toHaveBeenCalled();
+    });
+  });
+});
