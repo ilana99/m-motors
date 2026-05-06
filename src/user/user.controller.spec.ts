@@ -4,11 +4,18 @@ import { UserService } from './user.service';
 import { HttpException } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserRole } from './role.enum';
 
 describe('UserController', () => {
   let controller: UserController;
   let mockUserService: any;
-
+  const mockUser = {
+    id: '1',
+    name: 'Maria',
+    surname: 'Marie',
+    email: 'usertest@gmail.com',
+    birthday: '1998-01-01',
+  };
   beforeEach(async () => {
     mockUserService = {
       findAll: jest.fn(),
@@ -35,8 +42,20 @@ describe('UserController', () => {
 
   it('should return all users', async () => {
     const mockUsers = [
-      { id: 1, name: 'User 1' },
-      { id: 2, name: 'User 2' },
+      {
+        id: '1',
+        name: 'Maria',
+        surname: 'Marie',
+        email: 'usertest1@gmail.com',
+        birthday: '1998-01-01',
+      },
+      {
+        id: '2',
+        name: 'Mario',
+        surname: 'Marie',
+        email: 'usertest2@gmail.com',
+        birthday: '1998-01-01',
+      },
     ];
     mockUserService.findAll.mockResolvedValue(mockUsers);
 
@@ -55,8 +74,39 @@ describe('UserController', () => {
     await expect(result).rejects.toHaveProperty('status', 404);
   });
 
+  it('should return the profile for the logged in user', async () => {
+    const mockRequest = {
+      user: {
+        sub: 1,
+        email: 'user@test.com',
+        role: UserRole.User,
+      },
+    };
+    mockUserService.findOne.mockResolvedValue(mockUser);
+
+    const result = await controller.getProfile(mockRequest as any);
+
+    expect(mockUserService.findOne).toHaveBeenCalledWith(1);
+    expect(result).toEqual(mockUser);
+  });
+
+  it('should not return a profile and throw error', async () => {
+    const mockRequest = {
+      user: {
+        sub: 1,
+        email: 'user@test.com',
+        role: UserRole.User,
+      },
+    };
+    mockUserService.findOne.mockRejectedValue(new Error(''));
+
+    const result = controller.getProfile(mockRequest as any);
+
+    await expect(result).rejects.toThrow(HttpException);
+    await expect(result).rejects.toHaveProperty('status', 404);
+  });
+
   it('should find one user by id', async () => {
-    const mockUser = { id: 1, name: 'User 1' };
     mockUserService.findOne.mockResolvedValue(mockUser);
 
     const result = await controller.findOne('1');
