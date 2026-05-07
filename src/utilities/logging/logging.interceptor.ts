@@ -53,10 +53,15 @@ export class LoggingInterceptor implements NestInterceptor {
     const response = error.getResponse();
     if (typeof response === 'string') return response;
 
+    if (typeof response === 'object' && response !== null && 'message' in response) {
+      return response.message;
+    }
+
     if (typeof response === 'object' && response !== null && 'error' in response) {
       return response.error;
     }
 
     return error.message;
   }
+
 }

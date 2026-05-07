@@ -5,4 +5,5 @@ export class baseCarDto {
   price: string;
   service?: string;
   images: string[];
+  isAvailable: boolean;
 }

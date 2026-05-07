@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Service } from '../service.enum';
+import { ClientFileEntity } from '../../clientfile/entities/clientfile.entity';
 
 @Entity('cars')
 export class CarEntity {
@@ -27,4 +28,11 @@ export class CarEntity {
 
   @Column({ type: 'json', nullable: true })
   images: string[];
+
+  @OneToMany(() => ClientFileEntity, (clientFile) => clientFile.car)
+  clientFiles?: ClientFileEntity[];
+
+  @Column({ default: true })
+  isAvailable: boolean;
+
 }

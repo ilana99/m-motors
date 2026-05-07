@@ -4,6 +4,7 @@ import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '../user/role.enum';
 import { JwtService } from '@nestjs/jwt';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -59,10 +60,13 @@ describe('AuthService', () => {
       jest.spyOn(userService, 'findOneByEmail').mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.login({
-        email: 'user@test.com',
-        password: 'password123',
-      }, UserRole.User);
+      const result = await service.login(
+        {
+          email: 'user@test.com',
+          password: 'password123',
+        },
+        UserRole.User,
+      );
 
       expect(result).toEqual(mockToken);
       expect(userService.findOneByEmail).toHaveBeenCalledWith('user@test.com');
@@ -82,11 +86,14 @@ describe('AuthService', () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(
-        service.login({
-          email: 'user@test.com',
-          password: 'wrong_password',
-        }, UserRole.User),
-      ).rejects.toThrow();
+        service.login(
+          {
+            email: 'user@test.com',
+            password: 'wrong_password',
+          },
+          UserRole.User,
+        ),
+      ).rejects.toThrow('Invalid credentials');
 
       expect(jwtService.signAsync).not.toHaveBeenCalled();
     });
@@ -94,14 +101,33 @@ describe('AuthService', () => {
     it('should throw an error when user not found', async () => {
       jest
         .spyOn(userService, 'findOneByEmail')
-        .mockRejectedValue(new Error(''));
+        .mockRejectedValue(new NotFoundException('Invalid credentials'));
 
       await expect(
-        service.login({
-          email: 'nonexistent@test.com',
-          password: 'password123',
-        }, UserRole.User),
-      ).rejects.toThrow();
+        service.login(
+          {
+            email: 'nonexistent@test.com',
+            password: 'password123',
+          },
+          UserRole.User,
+        ),
+      ).rejects.toThrow('Invalid credentials');
+
+      expect(jwtService.signAsync).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error when role does not match', async () => {
+      jest.spyOn(userService, 'findOneByEmail').mockResolvedValue(mockUser);
+
+      await expect(
+        service.login(
+          {
+            email: 'user@test.com',
+            password: 'password123',
+          },
+          UserRole.Employee,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
 
       expect(jwtService.signAsync).not.toHaveBeenCalled();
     });

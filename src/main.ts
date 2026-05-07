@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
-import { LoggingInterceptor } from './logging/logging.interceptor';
+import { LoggingInterceptor } from './utilities/logging/logging.interceptor';
 
 declare const module: any;
 

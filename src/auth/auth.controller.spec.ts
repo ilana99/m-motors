@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
-import { HttpException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UserRole } from '../user/role.enum';
 import { Response } from 'express';
 import { CreateUserDto } from '../user/dto/create-user.dto';
@@ -82,7 +86,9 @@ describe('AuthController', () => {
     });
 
     it('should return error when user sign up fails', async () => {
-      mockUserService.signUp.mockRejectedValue(new Error(''));
+      mockUserService.signUp.mockRejectedValue(
+        new BadRequestException('Failed to create user'),
+      );
 
       const result = controller.signUp(createUserDto);
 
@@ -101,7 +107,9 @@ describe('AuthController', () => {
     });
 
     it('should return error when employee sign up fails', async () => {
-      mockUserService.signUp.mockRejectedValue(new Error(''));
+      mockUserService.signUp.mockRejectedValue(
+        new BadRequestException('Failed to create user'),
+      );
 
       const result = controller.signUpEmployee(createUserDto);
 
@@ -136,7 +144,9 @@ describe('AuthController', () => {
         cookie: jest.fn().mockReturnThis(),
       } as unknown as Response<Response>;
 
-      mockAuthService.login.mockRejectedValue(new Error());
+      mockAuthService.login.mockRejectedValue(
+        new UnauthorizedException('Invalid credentials'),
+      );
 
       const result = controller.loginUser(loginDto, mockRes);
 

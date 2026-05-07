@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { HttpException } from '@nestjs/common';
+import { HttpException, NotFoundException } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from './role.enum';
@@ -66,7 +66,9 @@ describe('UserController', () => {
   });
 
   it('should not return all users and throw error', async () => {
-    mockUserService.findAll.mockRejectedValue(new Error(''));
+    mockUserService.findAll.mockRejectedValue(
+      new NotFoundException('No users found'),
+    );
 
     const result = controller.findAll();
 
@@ -98,7 +100,9 @@ describe('UserController', () => {
         role: UserRole.User,
       },
     };
-    mockUserService.findOne.mockRejectedValue(new Error(''));
+    mockUserService.findOne.mockRejectedValue(
+      new NotFoundException('User with id 1 not found'),
+    );
 
     const result = controller.getProfile(mockRequest as any);
 
@@ -109,32 +113,36 @@ describe('UserController', () => {
   it('should find one user by id', async () => {
     mockUserService.findOne.mockResolvedValue(mockUser);
 
-    const result = await controller.findOne('1');
+    const result = await controller.findOne(1);
 
     expect(mockUserService.findOne).toHaveBeenCalledWith(1);
     expect(result).toEqual(mockUser);
   });
 
   it('should not find one user by id and throw error', async () => {
-    mockUserService.findOne.mockRejectedValue(new Error(''));
+    mockUserService.findOne.mockRejectedValue(
+      new NotFoundException('User with id 1 not found'),
+    );
 
-    const result = controller.findOne('1');
+    const result = controller.findOne(1);
 
     await expect(result).rejects.toThrow(HttpException);
     await expect(result).rejects.toHaveProperty('status', 404);
   });
 
   it('should remove one user by id', async () => {
-    const result = await controller.remove('1');
+    const result = await controller.remove(1);
 
     expect(mockUserService.remove).toHaveBeenCalledWith(1);
-    expect(result).toEqual('User with id 1 removed successfully');
+    expect(result).toEqual(undefined);
   });
 
   it('should not remove one user by id and throw error', async () => {
-    mockUserService.remove.mockRejectedValue(new Error(''));
+    mockUserService.remove.mockRejectedValue(
+      new NotFoundException('User with id 1 not found'),
+    );
 
-    const result = controller.remove('1');
+    const result = controller.remove(1);
 
     await expect(result).rejects.toThrow(HttpException);
     await expect(result).rejects.toHaveProperty('status', 404);

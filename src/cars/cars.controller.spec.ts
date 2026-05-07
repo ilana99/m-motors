@@ -1,16 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { HttpException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CarsController } from './cars.controller';
 import { CarsService } from './cars.service';
 import { Service } from './service.enum';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { SupabaseStorageService } from '../supabase-storage/supabase-storage.service';
+import { SupabaseStorageService } from '../utilities/supabase-storage/supabase-storage.service';
 
 type MockCarsService = {
   create: jest.Mock;
   findAll: jest.Mock;
   findAllByService: jest.Mock;
+  findAllByStatus: jest.Mock;
   findOne: jest.Mock;
   update: jest.Mock;
   updateService: jest.Mock;
@@ -32,6 +37,7 @@ describe('CarsController', () => {
       create: jest.fn(),
       findAll: jest.fn(),
       findAllByService: jest.fn(),
+      findAllByStatus: jest.fn(),
       findOne: jest.fn(),
       update: jest.fn(),
       updateService: jest.fn(),
@@ -107,7 +113,9 @@ describe('CarsController', () => {
   });
 
   it('should not create a car and throw error', async () => {
-    mockCarsService.create.mockRejectedValue(new Error(''));
+    mockCarsService.create.mockRejectedValue(
+      new BadRequestException('Invalid service'),
+    );
 
     const result = controller.create(
       {
@@ -159,7 +167,9 @@ describe('CarsController', () => {
   });
 
   it('should not return all cars and throw error', async () => {
-    mockCarsService.findAll.mockRejectedValue(new Error(''));
+    mockCarsService.findAll.mockRejectedValue(
+      new NotFoundException('No cars found'),
+    );
 
     const result = controller.findAll();
 
@@ -173,19 +183,51 @@ describe('CarsController', () => {
     ];
     mockCarsService.findAllByService.mockResolvedValue(mockCars);
 
-    const result = await controller.findAllByService('Leasing');
+    const result = await controller.findAllByService(Service.Leasing);
 
-    expect(mockCarsService.findAllByService).toHaveBeenCalledWith('Leasing');
+    expect(mockCarsService.findAllByService).toHaveBeenCalledWith(
+      Service.Leasing,
+    );
     expect(result).toEqual(mockCars);
   });
 
   it('should not return cars by service and throw error', async () => {
-    mockCarsService.findAllByService.mockRejectedValue(new Error(''));
+    mockCarsService.findAllByService.mockRejectedValue(
+      new BadRequestException('Invalid service'),
+    );
 
-    const result = controller.findAllByService('Rental');
+    const result = controller.findAllByService('Rental' as Service);
 
     await expect(result).rejects.toThrow(HttpException);
-    await expect(result).rejects.toHaveProperty('status', 404);
+    await expect(result).rejects.toHaveProperty('status', 400);
+  });
+
+  it('should return all cars by status', async () => {
+    const mockCars = [
+      {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        isAvailable: true,
+      },
+    ];
+    mockCarsService.findAllByStatus.mockResolvedValue(mockCars);
+
+    const result = await controller.findAllByStatus('available');
+
+    expect(mockCarsService.findAllByStatus).toHaveBeenCalledWith('available');
+    expect(result).toEqual(mockCars);
+  });
+
+  it('should not return cars by status and throw error', async () => {
+    mockCarsService.findAllByStatus.mockRejectedValue(
+      new BadRequestException('Invalid status'),
+    );
+
+    const result = controller.findAllByStatus('archived');
+
+    await expect(result).rejects.toThrow(HttpException);
+    await expect(result).rejects.toHaveProperty('status', 400);
   });
 
   it('should find one car by id', async () => {
@@ -199,7 +241,9 @@ describe('CarsController', () => {
   });
 
   it('should not find one car by id and throw error', async () => {
-    mockCarsService.findOne.mockRejectedValue(new Error(''));
+    mockCarsService.findOne.mockRejectedValue(
+      new NotFoundException('Car with id 1 not found'),
+    );
 
     const result = controller.findOne('1');
 
@@ -260,7 +304,9 @@ describe('CarsController', () => {
   });
 
   it('should not remove one car by id and throw error', async () => {
-    mockCarsService.remove.mockRejectedValue(new Error(''));
+    mockCarsService.remove.mockRejectedValue(
+      new NotFoundException('Car with id 1 not found'),
+    );
 
     const result = controller.remove('1');
 
@@ -294,7 +340,9 @@ describe('CarsController', () => {
   });
 
   it('should not delete one car image by id and throw error', async () => {
-    mockCarsService.deleteImage.mockRejectedValue(new Error(''));
+    mockCarsService.deleteImage.mockRejectedValue(
+      new NotFoundException('Could not find image'),
+    );
 
     const result = controller.deleteImage('1', 'cars/genesis-gv80.jpg');
 
