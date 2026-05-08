@@ -3,7 +3,7 @@ import { CarsService } from './cars.service';
 import { CarsController } from './cars.controller';
 import { CarEntity } from './entities/car.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SupabaseStorageService } from '../supabase-storage/supabase-storage.service';
+import { SupabaseStorageService } from '../utilities/supabase-storage/supabase-storage.service';
 
 @Module({
   controllers: [CarsController],
@@ -11,4 +11,4 @@ import { SupabaseStorageService } from '../supabase-storage/supabase-storage.ser
   imports: [TypeOrmModule.forFeature([CarEntity])],
   exports: [CarsService],
 })
-export class CarsModule {}
+export class CarsModule { }

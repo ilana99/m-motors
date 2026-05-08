@@ -16,6 +16,7 @@ describe('UserService', () => {
     mockUserRepository = {
       save: jest.fn(),
       find: jest.fn(),
+      findOne: jest.fn(),
       findOneOrFail: jest.fn(),
       remove: jest.fn(),
     };
@@ -110,11 +111,11 @@ describe('UserService', () => {
         birthday: new Date('1998-01-01'),
       };
 
-      mockUserRepository.findOneOrFail.mockResolvedValue(mockUser);
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.findOne(1);
 
-      expect(mockUserRepository.findOneOrFail).toHaveBeenCalledWith({
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
         where: { id: 1 },
       });
       expect(result).toBeInstanceOf(BaseUserDto);
@@ -123,9 +124,11 @@ describe('UserService', () => {
     });
 
     it('should throw an error when user is not found', async () => {
-      mockUserRepository.findOneOrFail.mockRejectedValue(new Error(''));
+      mockUserRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne(999)).rejects.toThrow('');
+      await expect(service.findOne(999)).rejects.toThrow(
+        'User with id 999 not found',
+      );
     });
   });
 
@@ -140,21 +143,21 @@ describe('UserService', () => {
         birthday: new Date('1998-01-01'),
       };
 
-      mockUserRepository.findOneOrFail.mockResolvedValue(mockUser);
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.findOneByEmail('user@test.com');
 
-      expect(mockUserRepository.findOneOrFail).toHaveBeenCalledWith({
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
         where: { email: 'user@test.com' },
       });
       expect(result).toEqual(mockUser);
     });
 
     it('should throw an error when user email is not found', async () => {
-      mockUserRepository.findOneOrFail.mockRejectedValue(new Error(''));
+      mockUserRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOneByEmail('notfound@test.com')).rejects.toThrow(
-        '',
+        'Invalid credentials',
       );
     });
   });
@@ -167,12 +170,12 @@ describe('UserService', () => {
         birthday: new Date('1998-01-01'),
       };
 
-      mockUserRepository.findOneOrFail.mockResolvedValue(mockUser);
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockUserRepository.remove.mockResolvedValue(mockUser);
 
       const result = await service.remove(1);
 
-      expect(mockUserRepository.findOneOrFail).toHaveBeenCalledWith({
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
         where: { id: 1 },
       });
       expect(mockUserRepository.remove).toHaveBeenCalledWith(mockUser);
@@ -180,9 +183,11 @@ describe('UserService', () => {
     });
 
     it('should throw an error when user to remove is not found', async () => {
-      mockUserRepository.findOneOrFail.mockRejectedValue(new Error(''));
+      mockUserRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.remove(999)).rejects.toThrow('');
+      await expect(service.remove(999)).rejects.toThrow(
+        'User with id 999 not found',
+      );
     });
   });
 });

@@ -3,8 +3,7 @@ import {
   Get,
   Param,
   Delete,
-  HttpException,
-  HttpStatus,
+  ParseIntPipe,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -24,77 +23,24 @@ export class UserController {
   @Roles(UserRole.Employee, UserRole.User)
   @Get('profile')
   async getProfile(@Req() req: AuthenticatedRequest): Promise<BaseUserDto> {
-    try {
-      return await this.userService.findOne(req.user.sub);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: 'No user found',
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+    return await this.userService.findOne(req.user.sub);
   }
 
   @Roles(UserRole.Employee)
   @Get('findAll')
   async findAll(): Promise<BaseUserDto[]> {
-    try {
-      return await this.userService.findAll();
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: 'No users found',
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+    return await this.userService.findAll();
   }
 
   @Roles(UserRole.Employee)
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<BaseUserDto> {
-    try {
-      return await this.userService.findOne(+id);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: `User with id ${id} not found`,
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<BaseUserDto> {
+    return await this.userService.findOne(id);
   }
 
   @Roles(UserRole.Employee)
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<string> {
-    try {
-      await this.userService.remove(+id);
-      return `User with id ${id} removed successfully`;
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: `Failed to remove user with id ${id}`,
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    await this.userService.remove(id);
   }
 }

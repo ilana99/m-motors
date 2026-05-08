@@ -3,8 +3,6 @@ import {
   Get,
   Post,
   Controller,
-  HttpException,
-  HttpStatus,
   Req,
   Res,
   UseGuards,
@@ -23,48 +21,22 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly userService: UserService,
-  ) { }
+  ) {}
 
   @Post('signup')
   async signUp(@Body() createUserDto: CreateUserDto): Promise<void> {
-    try {
-      return await this.userService.signUp({
-        ...createUserDto,
-        role: UserRole.User,
-      });
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.BAD_REQUEST,
-          error: 'Failed to create user',
-        },
-        HttpStatus.BAD_REQUEST,
-        {
-          cause: error,
-        },
-      );
-    }
+    return await this.userService.signUp({
+      ...createUserDto,
+      role: UserRole.User,
+    });
   }
 
   @Post('signupEmployee')
   async signUpEmployee(@Body() createUserDto: CreateUserDto): Promise<void> {
-    try {
-      return await this.userService.signUp({
-        ...createUserDto,
-        role: UserRole.Employee,
-      });
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.BAD_REQUEST,
-          error: 'Failed to create user',
-        },
-        HttpStatus.BAD_REQUEST,
-        {
-          cause: error,
-        },
-      );
-    }
+    return await this.userService.signUp({
+      ...createUserDto,
+      role: UserRole.Employee,
+    });
   }
 
   @Post('loginUser')
@@ -100,28 +72,15 @@ export class AuthController {
     res: Response,
     role: UserRole,
   ): Promise<void> {
-    try {
-      const token = await this.authService.login(loginDto, role);
+    const token = await this.authService.login(loginDto, role);
 
-      res.cookie('access_token', token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        path: '/',
-      });
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+    });
 
-      return;
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.UNAUTHORIZED,
-          error: 'Invalid credentials',
-        },
-        HttpStatus.UNAUTHORIZED,
-        {
-          cause: error,
-        },
-      );
-    }
+    return;
   }
 }

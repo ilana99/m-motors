@@ -6,8 +6,7 @@ import {
   Patch,
   Param,
   Delete,
-  HttpException,
-  HttpStatus,
+  BadRequestException,
   Query,
   UseInterceptors,
   UploadedFiles,
@@ -24,10 +23,19 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../user/role.enum';
-import { SupabaseStorageService } from '../supabase-storage/supabase-storage.service';
+import { SupabaseStorageService } from '../utilities/supabase-storage/supabase-storage.service';
 
 const carImagesInterceptor = FilesInterceptor('images', 10, {
   storage: memoryStorage(),
+  fileFilter: (req, file, callback) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return callback(
+        new BadRequestException('Only image files are allowed'),
+        false,
+      );
+    }
+    callback(null, true);
+  },
 });
 
 type CarWithImages = {
@@ -49,7 +57,7 @@ export class CarsController {
     return Promise.all(
       images.map((image) => {
         if (!image.buffer) {
-          throw new Error('Image file buffer is missing');
+          throw new BadRequestException('Image file buffer is missing');
         }
 
         const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -89,87 +97,41 @@ export class CarsController {
     @Body() createCarDto: CreateCarDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
   ) {
-    try {
-      const dto = {
-        ...createCarDto,
-      };
-      const uploadedImages = await this.uploadImages(images);
-      if (uploadedImages) {
-        dto.images = uploadedImages;
-      }
-      const car = await this.carsService.create(dto);
-      return this.withImageUrls(car);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.BAD_REQUEST,
-          error: 'Failed to add car',
-        },
-        HttpStatus.BAD_REQUEST,
-        {
-          cause: error,
-        },
-      );
+    const dto = {
+      ...createCarDto,
+    };
+    const uploadedImages = await this.uploadImages(images);
+    if (uploadedImages) {
+      dto.images = uploadedImages;
     }
+    const car = await this.carsService.create(dto);
+    return this.withImageUrls(car);
   }
 
   @Get()
   async findAll() {
-    try {
-      const cars = await this.carsService.findAll();
-      return cars.map((car) => this.withImageUrls(car));
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: 'No cars found',
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+    const cars = await this.carsService.findAll();
+    return cars.map((car) => this.withImageUrls(car));
   }
 
   @Roles(UserRole.Employee, UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
   @Get('service/:service')
-  async findAllByService(@Param('service') service: string) {
-    try {
-      const cars = await this.carsService.findAllByService(service);
-      return cars.map((car) => this.withImageUrls(car));
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: `No cars found with service: ${service}`,
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+  async findAllByService(@Param('service') service: Service) {
+    const cars = await this.carsService.findAllByService(service);
+    return cars.map((car) => this.withImageUrls(car));
+  }
+
+  @Get('status/:status')
+  async findAllByStatus(@Param('status') status: string) {
+    const cars = await this.carsService.findAllByStatus(status);
+    return cars.map((car) => this.withImageUrls(car));
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    try {
-      const car = await this.carsService.findOne(+id);
-      return this.withImageUrls(car);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: `Car with id ${id} not found`,
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+    const car = await this.carsService.findOne(+id);
+    return this.withImageUrls(car);
   }
 
   @Roles(UserRole.Employee)
@@ -181,12 +143,12 @@ export class CarsController {
     @Body() updateCarDto: UpdateCarDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
   ) {
-    const dto = {
-      ...updateCarDto,
-    };
+    const dto = { ...updateCarDto };
+
     if (images && images.length > 0) {
       dto.images = await this.uploadImages(images);
     }
+
     const car = await this.carsService.update(+id, dto);
     return this.withImageUrls(car);
   }
@@ -194,28 +156,18 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Patch(':id/service')
-  updateService(@Param('id') id: string, @Query('service') service: Service) {
-    return this.carsService.updateService(+id, service);
+  async updateService(
+    @Param('id') id: string,
+    @Query('service') service: Service,
+  ) {
+    return await this.carsService.updateService(+id, service);
   }
 
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    try {
-      await this.carsService.remove(+id);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: `Failed to remove car with id ${id}`,
-        },
-        HttpStatus.NOT_FOUND,
-        {
-          cause: error,
-        },
-      );
-    }
+    await this.carsService.remove(+id);
   }
 
   @Roles(UserRole.Employee)
@@ -223,24 +175,10 @@ export class CarsController {
   @Delete(':id/image')
   async deleteImage(@Param('id') id: string, @Body('url') url: string) {
     if (!url) {
-      throw new HttpException(
-        { status: HttpStatus.BAD_REQUEST, error: 'Image URL is required' },
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new BadRequestException('Image URL is required');
     }
 
-    try {
-      const car = await this.carsService.deleteImage(+id, url);
-      return this.withImageUrls(car);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.NOT_FOUND,
-          error: `Failed to remove image for car ${id}`,
-        },
-        HttpStatus.NOT_FOUND,
-        { cause: error },
-      );
-    }
+    const car = await this.carsService.deleteImage(+id, url);
+    return this.withImageUrls(car);
   }
 }
