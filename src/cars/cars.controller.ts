@@ -136,6 +136,14 @@ export class CarsController {
 
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
+  @Get(':id/clientfiles')
+  async findOneWithClientfiles(@Param('id') id: string) {
+    const car = await this.carsService.findOneForEmployees(+id);
+    return this.withImageUrls(car);
+  }
+
+  @Roles(UserRole.Employee)
+  @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(carImagesInterceptor)
   @Patch(':id')
   async update(
