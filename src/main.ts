@@ -18,8 +18,6 @@ async function bootstrap() {
       'https://m-motors-backoffice.onrender.com',
       'https://m-motors-backoffice-staging.onrender.com',
       'https://m-motors-frontend-staging.onrender.com',
-      /^https:\/\/m-motors-frontend-pr-\d+\.onrender\.com$/,
-      /^https:\/\/m-motors-backoffice-pr-\d+\.onrender\.com$/,
     ],
     credentials: true,
   });

@@ -8,9 +8,10 @@ import { UpdateCarDto } from './dto/update-car.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CarEntity } from './entities/car.entity';
 import { Repository } from 'typeorm';
-import { baseCarDto } from './dto/base-car.dto';
+import { baseCarDto, carClientfileDto } from './dto/base-car.dto';
 import { Service } from './service.enum';
 import { SupabaseStorageService } from '../utilities/supabase-storage/supabase-storage.service';
+import { ClientFileEntity } from '../clientfile/entities/clientfile.entity';
 
 @Injectable()
 export class CarsService {
@@ -38,6 +39,18 @@ export class CarsService {
     carDTO.images = car.images;
     carDTO.isAvailable = car.isAvailable;
     return carDTO;
+  }
+
+  private getClientfilePreviewDto(clientfile: ClientFileEntity) {
+    const dto = new carClientfileDto();
+
+    dto.id = clientfile.id.toString();
+    dto.status = clientfile.status;
+    dto.userId = clientfile.user.id.toString();
+    dto.name = clientfile.user.name;
+    dto.surname = clientfile.user.surname;
+
+    return dto;
   }
 
   private async findCar(id: number) {
@@ -99,6 +112,24 @@ export class CarsService {
   async findOne(id: number) {
     const car = await this.findCar(id);
     return this.getCarDto(car);
+  }
+
+  async findOneForEmployees(id: number) {
+    const car = await this.carRepository.findOne({
+      where: { id },
+      relations: ['clientFiles', 'clientFiles.user'],
+    });
+
+    if (!car) {
+      throw new NotFoundException(`Car with id ${id} not found`);
+    }
+
+    const carDto = this.getCarDto(car);
+    carDto.clientFiles = car.clientFiles?.map((clientFile) =>
+      this.getClientfilePreviewDto(clientFile),
+    );
+
+    return carDto;
   }
 
   async update(id: number, updateCarDto: UpdateCarDto) {
