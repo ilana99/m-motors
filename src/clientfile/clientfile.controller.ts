@@ -17,6 +17,7 @@ import {
 import { ClientfileService } from './clientfile.service';
 import { CreateClientfileDto } from './dto/create-clientfile.dto';
 import { UpdateClientfileDto } from './dto/update-clientfile.dto';
+import { BaseClientfileDto } from './dto/base-clientfile.dto';
 import { SupabaseStorageService } from '../utilities/supabase-storage/supabase-storage.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { extname } from 'path';
@@ -27,6 +28,16 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../user/role.enum';
 import { Status } from './status.enum';
 import { AuthenticatedRequest } from '../auth/type/authenticated-request.type';
+import {
+  ApiBadRequestResponse,
+  ApiConsumes,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 
 const clientfileFilesInterceptor = FileFieldsInterceptor(
   [
@@ -75,6 +86,18 @@ export class ClientfileController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(clientfileFilesInterceptor)
   @Post()
+  @ApiCookieAuth()
+  @ApiCreatedResponse()
+  @ApiBadRequestResponse({
+    description:
+      'Only image files are allowed | File buffer is missing | Identity card and proof of address are required | Leasing options are required | Options are only available for leasing cars | User already has a pending clientfile | Car is not available',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
+  @ApiConsumes('multipart/form-data')
   async create(
     @Body() createClientfileDto: CreateClientfileDto,
     @UploadedFiles() files: ClientfileFiles,
@@ -111,6 +134,12 @@ export class ClientfileController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Get()
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: [BaseClientfileDto] })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
   async findAll(@Req() req: AuthenticatedRequest) {
     return await this.clientfileService.findAll(req.user.role, req.user.sub);
   }
@@ -118,6 +147,12 @@ export class ClientfileController {
   @Get('me')
   @Roles(UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: [BaseClientfileDto] })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
   async findMine(@Req() req: AuthenticatedRequest) {
     return await this.clientfileService.findAll(req.user.role, req.user.sub);
   }
@@ -125,6 +160,13 @@ export class ClientfileController {
   @Get('status/:status')
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: [BaseClientfileDto] })
+  @ApiBadRequestResponse()
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
   async findAllByStatus(@Param('status') status: Status) {
     return await this.clientfileService.findAllByStatus(status);
   }
@@ -132,6 +174,15 @@ export class ClientfileController {
   @Get(':id')
   @Roles(UserRole.Employee, UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: BaseClientfileDto })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse({
+    description: 'Insufficient permissions | User cannot access other user file',
+  })
+  @ApiNotFoundResponse()
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: AuthenticatedRequest,
@@ -147,6 +198,21 @@ export class ClientfileController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(clientfileFilesInterceptor)
   @Patch(':id')
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: BaseClientfileDto })
+  @ApiBadRequestResponse({
+    description:
+      'Only image files are allowed | File buffer is missing | Cannot update canceled client file | Cannot update already rejected client file | Cannot update already accepted client file | Options are only available for leasing cars',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Insufficient permissions | User cannot update another user file',
+  })
+  @ApiNotFoundResponse()
+  @ApiConsumes('multipart/form-data')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateClientfileDto: UpdateClientfileDto,
@@ -182,6 +248,19 @@ export class ClientfileController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Patch(':id/status')
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: BaseClientfileDto })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid status | Only pending status client files can be updated | Car is not available',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse({
+    description: 'Clientfile with id 1 not found | Car with id 1 not found',
+  })
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Query('status') status: Status,
@@ -192,6 +271,16 @@ export class ClientfileController {
   @Roles(UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
   @Post('me/cancel')
+  @ApiCookieAuth()
+  @ApiCreatedResponse({ type: [BaseClientfileDto] })
+  @ApiBadRequestResponse()
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Insufficient permissions | User cannot cancel anoter user submission',
+  })
   async cancelSubmission(@Req() req: AuthenticatedRequest) {
     return await this.clientfileService.cancelSubmission(
       req.user.sub,
@@ -202,6 +291,13 @@ export class ClientfileController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Delete(':id')
+  @ApiCookieAuth()
+  @ApiOkResponse()
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.clientfileService.remove(id);
   }

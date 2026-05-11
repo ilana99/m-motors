@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { LoggingInterceptor } from './utilities/logging/logging.interceptor';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 declare const module: any;
 
@@ -21,6 +22,14 @@ async function bootstrap() {
     ],
     credentials: true,
   });
+  const config = new DocumentBuilder()
+    .addCookieAuth('access_token')
+    .setTitle('M-motors API')
+    .setDescription('API pour M-motors (employé et client)')
+    .setVersion('1.0')
+    .build();
+  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, documentFactory);
   await app.listen(process.env.PORT ?? 3000);
 
   if (module.hot) {

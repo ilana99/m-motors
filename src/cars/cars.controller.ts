@@ -15,6 +15,7 @@ import {
 import { CarsService } from './cars.service';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
+import { baseCarDto } from './dto/base-car.dto';
 import { Service } from './service.enum';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { extname } from 'path';
@@ -24,6 +25,16 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../user/role.enum';
 import { SupabaseStorageService } from '../utilities/supabase-storage/supabase-storage.service';
+import {
+  ApiBadRequestResponse,
+  ApiConsumes,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 
 const carImagesInterceptor = FilesInterceptor('images', 10, {
   storage: memoryStorage(),
@@ -47,7 +58,7 @@ export class CarsController {
   constructor(
     private readonly carsService: CarsService,
     private readonly supabaseStorageService: SupabaseStorageService,
-  ) {}
+  ) { }
 
   private async uploadImages(images?: Array<Express.Multer.File>) {
     if (!images || images.length === 0) {
@@ -93,6 +104,35 @@ export class CarsController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(carImagesInterceptor)
   @Post()
+  @ApiCookieAuth()
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        brand: { type: 'string', example: 'Genesis' },
+        model: { type: 'string', example: 'GV80' },
+        price: { type: 'string', example: '5000' },
+        service: { type: 'string', example: Service.Leasing },
+        images: {
+          type: 'array',
+          items: { type: 'string' },
+          nullable: true,
+          example: null,
+        },
+        id: { type: 'number', example: 49 },
+        isAvailable: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid service | Only image files are allowed | Image file buffer is missing',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiConsumes('multipart/form-data')
   async create(
     @Body() createCarDto: CreateCarDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
@@ -109,6 +149,7 @@ export class CarsController {
   }
 
   @Get()
+  @ApiOkResponse({ type: [baseCarDto] })
   async findAll() {
     const cars = await this.carsService.findAll();
     return cars.map((car) => this.withImageUrls(car));
@@ -117,18 +158,29 @@ export class CarsController {
   @Roles(UserRole.Employee, UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
   @Get('service/:service')
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: [baseCarDto] })
+  @ApiBadRequestResponse()
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
   async findAllByService(@Param('service') service: Service) {
     const cars = await this.carsService.findAllByService(service);
     return cars.map((car) => this.withImageUrls(car));
   }
 
   @Get('status/:status')
+  @ApiOkResponse({ type: [baseCarDto] })
+  @ApiBadRequestResponse()
   async findAllByStatus(@Param('status') status: string) {
     const cars = await this.carsService.findAllByStatus(status);
     return cars.map((car) => this.withImageUrls(car));
   }
 
   @Get(':id')
+  @ApiOkResponse({ type: baseCarDto })
+  @ApiNotFoundResponse()
   async findOne(@Param('id') id: string) {
     const car = await this.carsService.findOne(+id);
     return this.withImageUrls(car);
@@ -137,6 +189,13 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Get(':id/clientfiles')
+  @ApiCookieAuth()
+  @ApiOkResponse({ type: baseCarDto })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
   async findOneWithClientfiles(@Param('id') id: string) {
     const car = await this.carsService.findOneForEmployees(+id);
     return this.withImageUrls(car);
@@ -146,6 +205,17 @@ export class CarsController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(carImagesInterceptor)
   @Patch(':id')
+  @ApiCookieAuth()
+  @ApiOkResponse()
+  @ApiBadRequestResponse({
+    description: 'Only image files are allowed | Image file buffer is missing',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
+  @ApiConsumes('multipart/form-data')
   async update(
     @Param('id') id: string,
     @Body() updateCarDto: UpdateCarDto,
@@ -164,6 +234,14 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Patch(':id/service')
+  @ApiCookieAuth()
+  @ApiOkResponse()
+  @ApiBadRequestResponse()
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
   async updateService(
     @Param('id') id: string,
     @Query('service') service: Service,
@@ -174,6 +252,13 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Delete(':id')
+  @ApiCookieAuth()
+  @ApiOkResponse()
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse()
   async remove(@Param('id') id: string) {
     await this.carsService.remove(+id);
   }
@@ -181,6 +266,16 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Delete(':id/image')
+  @ApiCookieAuth()
+  @ApiOkResponse()
+  @ApiBadRequestResponse()
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse({
+    description: 'Car with id 1 not found | Could not find image',
+  })
   async deleteImage(@Param('id') id: string, @Body('url') url: string) {
     if (!url) {
       throw new BadRequestException('Image URL is required');
