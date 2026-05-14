@@ -1,31 +1,34 @@
-import {
-    IsOptional,
-    IsString,
-    IsBooleanString,
-} from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBooleanString, IsOptional, IsString } from 'class-validator';
 
 export class UpdateClientfileDto {
-    @IsOptional()
-    @IsString()
-    identityCard?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  identityCard?: string;
 
-    @IsOptional()
-    @IsString()
-    proofOfAddress?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  proofOfAddress?: string;
 
-    @IsOptional()
-    @IsBooleanString()
-    insurance?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBooleanString()
+  insurance?: string;
 
-    @IsOptional()
-    @IsBooleanString()
-    roadsideAssistance?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBooleanString()
+  roadsideAssistance?: string;
 
-    @IsOptional()
-    @IsBooleanString()
-    maintenance?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBooleanString()
+  maintenance?: string;
 
-    @IsOptional()
-    @IsBooleanString()
-    technicalControl?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBooleanString()
+  technicalControl?: string;
 }

@@ -15,6 +15,13 @@ import { UserService } from '../user/user.service';
 import { UserRole } from '../user/role.enum';
 import { AuthGuard } from './guards/auth.guard';
 import { AuthenticatedRequest } from './type/authenticated-request.type';
+import {
+  ApiBadRequestResponse,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiResponse,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
@@ -24,6 +31,8 @@ export class AuthController {
   ) { }
 
   @Post('signup')
+  @ApiCreatedResponse()
+  @ApiBadRequestResponse()
   async signUp(@Body() createUserDto: CreateUserDto): Promise<void> {
     return await this.userService.signUp({
       ...createUserDto,
@@ -32,6 +41,8 @@ export class AuthController {
   }
 
   @Post('signupEmployee')
+  @ApiCreatedResponse()
+  @ApiBadRequestResponse()
   async signUpEmployee(@Body() createUserDto: CreateUserDto): Promise<void> {
     return await this.userService.signUp({
       ...createUserDto,
@@ -40,6 +51,8 @@ export class AuthController {
   }
 
   @Post('loginUser')
+  @ApiCreatedResponse()
+  @ApiUnauthorizedResponse()
   async loginUser(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -48,6 +61,8 @@ export class AuthController {
   }
 
   @Post('loginEmployee')
+  @ApiCreatedResponse()
+  @ApiUnauthorizedResponse()
   async loginEmployee(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -56,6 +71,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @ApiCreatedResponse()
   logout(@Res({ passthrough: true }) res: Response): void {
     res.clearCookie('access_token', {
       httpOnly: true,
@@ -68,6 +84,22 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
+  @ApiCookieAuth()
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        sub: { type: 'number' },
+        email: { type: 'string' },
+        role: { type: 'string' },
+        iat: { type: 'number' },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
   me(@Req() req: AuthenticatedRequest): AuthenticatedRequest['user'] {
     return req.user;
   }
