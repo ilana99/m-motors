@@ -116,6 +116,7 @@ export class AuthController {
       secure: true,
       sameSite: 'none',
       path: '/',
+      maxAge: 3 * 24 * 60 * 60 * 1000,
     });
 
     return;
