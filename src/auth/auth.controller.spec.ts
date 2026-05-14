@@ -133,6 +133,7 @@ describe('AuthController', () => {
       );
       expect(mockRes.cookie).toHaveBeenCalledWith('access_token', mockToken, {
         httpOnly: true,
+        maxAge: 259200000,
         secure: true,
         sameSite: 'none',
         path: '/',
@@ -161,7 +162,12 @@ describe('AuthController', () => {
 
       const result = controller.logout(mockRes);
 
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('access_token');
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('access_token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+      });
       expect(result).toBeUndefined();
     });
   });
