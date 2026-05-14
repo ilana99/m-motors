@@ -10,11 +10,15 @@ import { CarsModule } from './cars/cars.module';
 import { CarEntity } from './cars/entities/car.entity';
 import { ClientfileModule } from './clientfile/clientfile.module';
 import { ClientFileEntity } from './clientfile/entities/clientfile.entity';
+import { SentryModule } from '@sentry/nestjs/setup';
+import { APP_FILTER } from '@nestjs/core';
+import { SentryExceptionFilter } from './utilities/sentry/sentry-exception.filter';
 
 const isProd = process.env.NODE_ENV === 'production';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -31,6 +35,12 @@ const isProd = process.env.NODE_ENV === 'production';
     ClientfileModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: SentryExceptionFilter,
+    },
+  ],
 })
 export class AppModule { }
