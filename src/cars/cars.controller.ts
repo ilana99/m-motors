@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { CarsService } from './cars.service';
 import { CreateCarDto } from './dto/create-car.dto';
@@ -181,8 +182,8 @@ export class CarsController {
   @Get(':id')
   @ApiOkResponse({ type: baseCarDto })
   @ApiNotFoundResponse()
-  async findOne(@Param('id') id: string) {
-    const car = await this.carsService.findOne(+id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const car = await this.carsService.findOne(id);
     return this.withImageUrls(car);
   }
 
@@ -196,8 +197,8 @@ export class CarsController {
   })
   @ApiForbiddenResponse()
   @ApiNotFoundResponse()
-  async findOneWithClientfiles(@Param('id') id: string) {
-    const car = await this.carsService.findOneForEmployees(+id);
+  async findOneWithClientfiles(@Param('id', ParseIntPipe) id: number) {
+    const car = await this.carsService.findOneForEmployees(id);
     return this.withImageUrls(car);
   }
 
@@ -217,7 +218,7 @@ export class CarsController {
   @ApiNotFoundResponse()
   @ApiConsumes('multipart/form-data')
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateCarDto: UpdateCarDto,
     @UploadedFiles() images: Array<Express.Multer.File>,
   ) {
@@ -227,7 +228,7 @@ export class CarsController {
       dto.images = await this.uploadImages(images);
     }
 
-    const car = await this.carsService.update(+id, dto);
+    const car = await this.carsService.update(id, dto);
     return this.withImageUrls(car);
   }
 
@@ -243,10 +244,10 @@ export class CarsController {
   @ApiForbiddenResponse()
   @ApiNotFoundResponse()
   async updateService(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Query('service') service: Service,
   ) {
-    return await this.carsService.updateService(+id, service);
+    return await this.carsService.updateService(id, service);
   }
 
   @Roles(UserRole.Employee)
@@ -259,8 +260,8 @@ export class CarsController {
   })
   @ApiForbiddenResponse()
   @ApiNotFoundResponse()
-  async remove(@Param('id') id: string) {
-    await this.carsService.remove(+id);
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    await this.carsService.remove(id);
   }
 
   @Roles(UserRole.Employee)
@@ -276,12 +277,12 @@ export class CarsController {
   @ApiNotFoundResponse({
     description: 'Car with id 1 not found | Could not find image',
   })
-  async deleteImage(@Param('id') id: string, @Body('url') url: string) {
+  async deleteImage(@Param('id', ParseIntPipe) id: number, @Body('url') url: string) {
     if (!url) {
       throw new BadRequestException('Image URL is required');
     }
 
-    const car = await this.carsService.deleteImage(+id, url);
+    const car = await this.carsService.deleteImage(id, url);
     return this.withImageUrls(car);
   }
 }

@@ -234,7 +234,7 @@ describe('CarsController', () => {
     const mockCar = { id: 1, brand: 'Genesis', model: 'GV80' };
     mockCarsService.findOne.mockResolvedValue(mockCar);
 
-    const result = await controller.findOne('1');
+    const result = await controller.findOne(1);
 
     expect(mockCarsService.findOne).toHaveBeenCalledWith(1);
     expect(result).toEqual(mockCar);
@@ -245,7 +245,7 @@ describe('CarsController', () => {
       new NotFoundException('Car with id 1 not found'),
     );
 
-    const result = controller.findOne('1');
+    const result = controller.findOne(1);
 
     await expect(result).rejects.toThrow(HttpException);
     await expect(result).rejects.toHaveProperty('status', 404);
@@ -272,7 +272,7 @@ describe('CarsController', () => {
     mockSupabaseStorageService.uploadFile.mockResolvedValue(mockCar.images[0]);
     mockCarsService.update.mockResolvedValue(mockCar);
 
-    const result = await controller.update('1', updateCarDto, images);
+    const result = await controller.update(1, updateCarDto, images);
 
     expect(mockCarsService.update).toHaveBeenCalledWith(1, {
       ...updateCarDto,
@@ -290,14 +290,14 @@ describe('CarsController', () => {
     };
     mockCarsService.updateService.mockResolvedValue(mockCar);
 
-    const result = await controller.updateService('1', Service.Sale);
+    const result = await controller.updateService(1, Service.Sale);
 
     expect(mockCarsService.updateService).toHaveBeenCalledWith(1, Service.Sale);
     expect(result).toEqual(mockCar);
   });
 
   it('should remove one car by id', async () => {
-    const result = await controller.remove('1');
+    const result = await controller.remove(1);
 
     expect(mockCarsService.remove).toHaveBeenCalledWith(1);
     expect(result).toBeUndefined();
@@ -308,7 +308,7 @@ describe('CarsController', () => {
       new NotFoundException('Car with id 1 not found'),
     );
 
-    const result = controller.remove('1');
+    const result = controller.remove(1);
 
     await expect(result).rejects.toThrow(HttpException);
     await expect(result).rejects.toHaveProperty('status', 404);
@@ -323,7 +323,7 @@ describe('CarsController', () => {
     };
     mockCarsService.deleteImage.mockResolvedValue(mockCar);
 
-    const result = await controller.deleteImage('1', 'cars/genesis-gv80.jpg');
+    const result = await controller.deleteImage(1, 'cars/genesis-gv80.jpg');
 
     expect(mockCarsService.deleteImage).toHaveBeenCalledWith(
       1,
@@ -333,7 +333,7 @@ describe('CarsController', () => {
   });
 
   it('should not delete an image without url and throw error', async () => {
-    const result = controller.deleteImage('1', '');
+    const result = controller.deleteImage(1, '');
 
     await expect(result).rejects.toThrow(HttpException);
     await expect(result).rejects.toHaveProperty('status', 400);
@@ -344,7 +344,7 @@ describe('CarsController', () => {
       new NotFoundException('Could not find image'),
     );
 
-    const result = controller.deleteImage('1', 'cars/genesis-gv80.jpg');
+    const result = controller.deleteImage(1, 'cars/genesis-gv80.jpg');
 
     await expect(result).rejects.toThrow(HttpException);
     await expect(result).rejects.toHaveProperty('status', 404);
