@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Get,
   Post,
@@ -14,6 +15,8 @@ import { LoginDto } from './dto/login.dto';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/role.enum';
 import { AuthGuard } from './guards/auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './roles.decorator';
 import { AuthenticatedRequest } from './type/authenticated-request.type';
 import {
   ApiBadRequestResponse,
@@ -72,8 +75,21 @@ export class AuthController {
 
   @Post('logout')
   @ApiCreatedResponse()
-  logout(@Res({ passthrough: true }) res: Response): void {
-    res.clearCookie('access_token', {
+  logout(
+    @Body('role') role: UserRole,
+    @Res({ passthrough: true }) res: Response,
+  ): void {
+    let cookieName: string;
+
+    if (role === UserRole.User) {
+      cookieName = 'user_access_token';
+    } else if (role === UserRole.Employee) {
+      cookieName = 'employee_access_token';
+    } else {
+      throw new BadRequestException('Invalid role');
+    }
+
+    res.clearCookie(cookieName, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
@@ -82,8 +98,9 @@ export class AuthController {
     return;
   }
 
-  @Get('me')
-  @UseGuards(AuthGuard)
+  @Get('meUser')
+  @Roles(UserRole.User)
+  @UseGuards(AuthGuard, RolesGuard)
   @ApiCookieAuth()
   @ApiResponse({
     status: 200,
@@ -100,7 +117,30 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
   })
-  me(@Req() req: AuthenticatedRequest): AuthenticatedRequest['user'] {
+  meUser(@Req() req: AuthenticatedRequest): AuthenticatedRequest['user'] {
+    return req.user;
+  }
+
+  @Get('meEmployee')
+  @Roles(UserRole.Employee)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiCookieAuth()
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        sub: { type: 'number' },
+        email: { type: 'string' },
+        role: { type: 'string' },
+        iat: { type: 'number' },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'No token provided | Invalid or expired token',
+  })
+  meEmployee(@Req() req: AuthenticatedRequest): AuthenticatedRequest['user'] {
     return req.user;
   }
 
@@ -110,8 +150,10 @@ export class AuthController {
     role: UserRole,
   ): Promise<void> {
     const token = await this.authService.login(loginDto, role);
+    const cookieName =
+      role === UserRole.User ? 'user_access_token' : 'employee_access_token';
 
-    res.cookie('access_token', token, {
+    res.cookie(cookieName, token, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
