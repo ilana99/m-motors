@@ -17,7 +17,7 @@ describe('AuthController', () => {
   let mockAuthService: any;
   let mockUserService: any;
   const createUserDto = {
-    email: 'email@test.com',
+    email: 'user@gmail.com',
     name: 'Maria',
     surname: 'Marie',
     password: 'password',
@@ -33,8 +33,18 @@ describe('AuthController', () => {
     role: UserRole.Employee,
   };
   const loginDto = {
-    email: 'email@test.com',
+    email: 'user@gmail.com',
     password: 'password',
+  };
+  const authenticatedUser = {
+    sub: 1,
+    email: 'user@gmail.com',
+    role: UserRole.User,
+  };
+  const authenticatedEmployee = {
+    sub: 2,
+    email: 'user@gmail.com',
+    role: UserRole.Employee,
   };
 
   beforeEach(async () => {
@@ -131,13 +141,17 @@ describe('AuthController', () => {
         loginDto,
         UserRole.User,
       );
-      expect(mockRes.cookie).toHaveBeenCalledWith('access_token', mockToken, {
-        httpOnly: true,
-        maxAge: 259200000,
-        secure: true,
-        sameSite: 'none',
-        path: '/',
-      });
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'user_access_token',
+        mockToken,
+        {
+          httpOnly: true,
+          maxAge: 259200000,
+          secure: true,
+          sameSite: 'none',
+          path: '/',
+        },
+      );
     });
 
     it('should return error when login fails', async () => {
@@ -155,20 +169,91 @@ describe('AuthController', () => {
       expect(mockRes.cookie).not.toHaveBeenCalled();
     });
 
+    it('should login employee successfully', async () => {
+      mockAuthService.login.mockResolvedValue(mockToken);
+
+      const mockRes = {
+        cookie: jest.fn().mockReturnThis(),
+      } as unknown as Response<Response>;
+
+      await controller.loginEmployee(loginDto, mockRes);
+
+      expect(mockAuthService.login).toHaveBeenCalledWith(
+        loginDto,
+        UserRole.Employee,
+      );
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'employee_access_token',
+        mockToken,
+        {
+          httpOnly: true,
+          maxAge: 259200000,
+          secure: true,
+          sameSite: 'none',
+          path: '/',
+        },
+      );
+    });
+
     it('should logout user', async () => {
       const mockRes = {
         clearCookie: jest.fn().mockReturnThis(),
       } as unknown as Response<Response>;
 
-      const result = controller.logout(mockRes);
+      const result = controller.logout(UserRole.User, mockRes);
 
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('access_token', {
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('user_access_token', {
         httpOnly: true,
         secure: true,
         sameSite: 'none',
         path: '/',
       });
+      expect(mockRes.clearCookie).toHaveBeenCalledTimes(1);
       expect(result).toBeUndefined();
+    });
+
+    it('should logout employee', async () => {
+      const mockRes = {
+        clearCookie: jest.fn().mockReturnThis(),
+      } as unknown as Response<Response>;
+
+      const result = controller.logout(UserRole.Employee, mockRes);
+
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('employee_access_token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: '/',
+      });
+      expect(mockRes.clearCookie).toHaveBeenCalledTimes(1);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return error when logout role is invalid', async () => {
+      const mockRes = {
+        clearCookie: jest.fn().mockReturnThis(),
+      } as unknown as Response<Response>;
+
+      expect(() =>
+        controller.logout(undefined as unknown as UserRole, mockRes),
+      ).toThrow(HttpException);
+      expect(mockRes.clearCookie).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('me', () => {
+    it('should return authenticated user', () => {
+      const result = controller.meUser({ user: authenticatedUser } as any);
+
+      expect(result).toBe(authenticatedUser);
+    });
+
+    it('should return authenticated employee', () => {
+      const result = controller.meEmployee({
+        user: authenticatedEmployee,
+      } as any);
+
+      expect(result).toBe(authenticatedEmployee);
     });
   });
 });
