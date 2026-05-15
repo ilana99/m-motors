@@ -56,9 +56,9 @@ describe('ClientfileService', () => {
 
   const user = {
     id: 2,
-    email: 'client@example.com',
-    name: 'Client',
-    surname: 'Driver',
+    email: 'user@gmail.com',
+    name: 'Maria',
+    surname: 'Marie',
     birthday,
     password: 'secret',
     role: UserRole.User,
@@ -471,7 +471,7 @@ describe('ClientfileService', () => {
       expect(mockCarRepository.save).not.toHaveBeenCalled();
     });
 
-    it('should not accept a clientfile when the car is unavailable', async () => {
+    it('should not update status when the car is unavailable', async () => {
       mockClientfileRepository.findOne.mockResolvedValue({
         ...pendingClientfile,
         car: {
@@ -480,7 +480,7 @@ describe('ClientfileService', () => {
         },
       });
 
-      await expect(service.updateStatus(3, Status.Accepted)).rejects.toThrow(
+      await expect(service.updateStatus(3, Status.Rejected)).rejects.toThrow(
         'Car is not available',
       );
       expect(mockClientfileRepository.save).not.toHaveBeenCalled();
@@ -506,9 +506,9 @@ describe('ClientfileService', () => {
         },
         user: {
           id: '2',
-          email: 'client@example.com',
-          name: 'Client',
-          surname: 'Driver',
+          email: 'user@gmail.com',
+          name: 'Maria',
+          surname: 'Marie',
           birthday,
         },
         status: Status.Rejected,

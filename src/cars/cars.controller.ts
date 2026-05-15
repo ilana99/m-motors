@@ -105,7 +105,7 @@ export class CarsController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(carImagesInterceptor)
   @Post()
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiCreatedResponse({
     schema: {
       type: 'object',
@@ -159,7 +159,8 @@ export class CarsController {
   @Roles(UserRole.Employee, UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
   @Get('service/:service')
-  @ApiCookieAuth()
+  @ApiCookieAuth('user_access_token')
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: [baseCarDto] })
   @ApiBadRequestResponse()
   @ApiUnauthorizedResponse({
@@ -190,7 +191,7 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Get(':id/clientfiles')
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: baseCarDto })
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -206,7 +207,7 @@ export class CarsController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(carImagesInterceptor)
   @Patch(':id')
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse()
   @ApiBadRequestResponse({
     description: 'Only image files are allowed | Image file buffer is missing',
@@ -235,7 +236,7 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Patch(':id/service')
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse()
   @ApiBadRequestResponse()
   @ApiUnauthorizedResponse({
@@ -253,7 +254,7 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Delete(':id')
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse()
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -267,7 +268,7 @@ export class CarsController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Delete(':id/image')
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse()
   @ApiBadRequestResponse()
   @ApiUnauthorizedResponse({

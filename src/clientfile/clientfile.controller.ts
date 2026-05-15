@@ -86,7 +86,7 @@ export class ClientfileController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(clientfileFilesInterceptor)
   @Post()
-  @ApiCookieAuth()
+  @ApiCookieAuth('user_access_token')
   @ApiCreatedResponse()
   @ApiBadRequestResponse({
     description:
@@ -134,7 +134,7 @@ export class ClientfileController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Get()
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: [BaseClientfileDto] })
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -147,7 +147,7 @@ export class ClientfileController {
   @Get('me')
   @Roles(UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
-  @ApiCookieAuth()
+  @ApiCookieAuth('user_access_token')
   @ApiOkResponse({ type: [BaseClientfileDto] })
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -160,7 +160,7 @@ export class ClientfileController {
   @Get('status/:status')
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: [BaseClientfileDto] })
   @ApiBadRequestResponse()
   @ApiUnauthorizedResponse({
@@ -174,7 +174,8 @@ export class ClientfileController {
   @Get(':id')
   @Roles(UserRole.Employee, UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
-  @ApiCookieAuth()
+  @ApiCookieAuth('user_access_token')
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: BaseClientfileDto })
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -198,7 +199,8 @@ export class ClientfileController {
   @UseGuards(AuthGuard, RolesGuard)
   @UseInterceptors(clientfileFilesInterceptor)
   @Patch(':id')
-  @ApiCookieAuth()
+  @ApiCookieAuth('user_access_token')
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: BaseClientfileDto })
   @ApiBadRequestResponse({
     description:
@@ -228,7 +230,7 @@ export class ClientfileController {
     await this.clientfileService.checkUpdate(req.user.role, req.user.sub, id);
 
     if (identityCard) {
-      dto.identityCard = await this.uploadFile(identityCard, 'identity-cards');
+      dto.identityCard = await this.uploadFile(identityCard, 'identity-card');
     }
     if (proofOfAddress) {
       dto.proofOfAddress = await this.uploadFile(
@@ -248,7 +250,7 @@ export class ClientfileController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Patch(':id/status')
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: BaseClientfileDto })
   @ApiBadRequestResponse({
     description:
@@ -271,7 +273,7 @@ export class ClientfileController {
   @Roles(UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
   @Post('me/cancel')
-  @ApiCookieAuth()
+  @ApiCookieAuth('user_access_token')
   @ApiCreatedResponse({ type: [BaseClientfileDto] })
   @ApiBadRequestResponse()
   @ApiUnauthorizedResponse({
@@ -291,7 +293,7 @@ export class ClientfileController {
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
   @Delete(':id')
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse()
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',

@@ -370,14 +370,14 @@ export class ClientfileService {
       );
     }
 
+    const car = clientfile.car ?? (await this.findCar(clientfile.carId));
+    if (!car.isAvailable) {
+      throw new BadRequestException('Car is not available');
+    }
+
     clientfile.status = status;
 
     if (clientfile.status == Status.Accepted) {
-      const car = clientfile.car ?? (await this.findCar(clientfile.carId));
-      if (!car.isAvailable) {
-        throw new BadRequestException('Car is not available');
-      }
-
       car.isAvailable = false;
       await this.carRepository.save(car);
     }

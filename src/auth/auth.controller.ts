@@ -101,7 +101,7 @@ export class AuthController {
   @Get('meUser')
   @Roles(UserRole.User)
   @UseGuards(AuthGuard, RolesGuard)
-  @ApiCookieAuth()
+  @ApiCookieAuth('user_access_token')
   @ApiResponse({
     status: 200,
     schema: {
@@ -124,7 +124,7 @@ export class AuthController {
   @Get('meEmployee')
   @Roles(UserRole.Employee)
   @UseGuards(AuthGuard, RolesGuard)
-  @ApiCookieAuth()
+  @ApiCookieAuth('employee_access_token')
   @ApiResponse({
     status: 200,
     schema: {

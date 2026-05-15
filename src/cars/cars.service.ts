@@ -134,6 +134,13 @@ export class CarsService {
 
   async update(id: number, updateCarDto: UpdateCarDto) {
     const car = await this.findCar(id);
+    if (
+      updateCarDto.service &&
+      updateCarDto.service !== car.service &&
+      car.isAvailable === false
+    ) {
+      throw new BadRequestException('Car is not available');
+    }
     const { images, ...otherFields } = updateCarDto;
     Object.assign(car, otherFields);
     if (images && images.length > 0) {
@@ -147,6 +154,9 @@ export class CarsService {
       throw new BadRequestException('Invalid service');
     }
     const car = await this.findCar(id);
+    if (newService !== car.service && car.isAvailable === false) {
+      throw new BadRequestException('Car is not available');
+    }
     car.service = newService;
     return await this.carRepository.save(car);
   }
