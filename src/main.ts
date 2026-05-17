@@ -24,7 +24,8 @@ async function bootstrap() {
     credentials: true,
   });
   const config = new DocumentBuilder()
-    .addCookieAuth('access_token')
+    .addCookieAuth('user_access_token', undefined, 'user_access_token')
+    .addCookieAuth('employee_access_token', undefined, 'employee_access_token')
     .setTitle('M-motors API')
     .setDescription('API pour M-motors (employé et client)')
     .setVersion('1.0')

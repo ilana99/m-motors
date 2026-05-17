@@ -23,13 +23,14 @@ import {
 } from '@nestjs/swagger';
 
 @UseGuards(AuthGuard, RolesGuard)
-@ApiCookieAuth()
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) { }
 
   @Roles(UserRole.Employee, UserRole.User)
   @Get('profile')
+  @ApiCookieAuth('user_access_token')
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: BaseUserDto })
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -42,6 +43,7 @@ export class UserController {
 
   @Roles(UserRole.Employee)
   @Get('findAll')
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: [BaseUserDto] })
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -53,6 +55,7 @@ export class UserController {
 
   @Roles(UserRole.Employee)
   @Get(':id')
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse({ type: BaseUserDto })
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',
@@ -65,6 +68,7 @@ export class UserController {
 
   @Roles(UserRole.Employee)
   @Delete(':id')
+  @ApiCookieAuth('employee_access_token')
   @ApiOkResponse()
   @ApiUnauthorizedResponse({
     description: 'No token provided | Invalid or expired token',

@@ -308,6 +308,23 @@ describe('CarsService', () => {
         'Car with id 999 not found',
       );
     });
+
+    it('should not update service when the car is unavailable', async () => {
+      mockCarRepository.findOne.mockResolvedValue({
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [],
+        isAvailable: false,
+      });
+
+      await expect(
+        service.update(1, { service: Service.Sale }),
+      ).rejects.toThrow('Car is not available');
+      expect(mockCarRepository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateService', () => {
@@ -332,6 +349,23 @@ describe('CarsService', () => {
       });
       expect(mockCarRepository.save).toHaveBeenCalledWith(updatedCar);
       expect(result).toEqual(updatedCar);
+    });
+
+    it('should not update a car service when the car is unavailable', async () => {
+      mockCarRepository.findOne.mockResolvedValue({
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [],
+        isAvailable: false,
+      });
+
+      await expect(service.updateService(1, Service.Sale)).rejects.toThrow(
+        'Car is not available',
+      );
+      expect(mockCarRepository.save).not.toHaveBeenCalled();
     });
   });
 
