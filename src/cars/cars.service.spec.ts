@@ -5,6 +5,7 @@ import { CarEntity } from './entities/car.entity';
 import { baseCarDto } from './dto/base-car.dto';
 import { Service } from './service.enum';
 import { SupabaseStorageService } from '../utilities/supabase-storage/supabase-storage.service';
+import { Status } from '../clientfile/status.enum';
 
 type MockCarRepository = {
   save: jest.Mock;
@@ -33,6 +34,12 @@ describe('CarsService', () => {
     'https://example.supabase.co/storage/v1/object/public/images/cars/genesis-gv80-new.jpg';
   const deleteImage =
     'https://example.supabase.co/storage/v1/object/public/images/cars/genesis-gv80-delete.jpg';
+  const user = {
+    id: 2,
+    email: 'user@gmail.com',
+    name: 'Maria',
+    surname: 'Marie',
+  };
 
   beforeEach(async () => {
     mockCarRepository = {
@@ -118,6 +125,18 @@ describe('CarsService', () => {
         service: Service.Sale,
       });
       expect(result).toEqual(savedCar);
+    });
+
+    it('should throw an error when service is invalid', async () => {
+      await expect(
+        service.create({
+          brand: 'Genesis',
+          model: 'GV80',
+          price: '75000.00',
+          service: 'Rental' as Service,
+        }),
+      ).rejects.toThrow('Invalid service');
+      expect(mockCarRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -234,6 +253,32 @@ describe('CarsService', () => {
       );
       expect(mockCarRepository.find).not.toHaveBeenCalled();
     });
+
+    it('should return unavailable cars', async () => {
+      const mockCars = [
+        {
+          id: 1,
+          brand: 'Genesis',
+          model: 'GV80',
+          price: '75000.00',
+          service: Service.Leasing,
+          images: [genesisGv80Image],
+          isAvailable: false,
+        },
+      ];
+
+      mockCarRepository.find.mockResolvedValue(mockCars);
+
+      const result = await service.findAllByStatus('unavailable');
+
+      expect(mockCarRepository.find).toHaveBeenCalledWith({
+        where: { isAvailable: false },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].brand).toBe('Genesis');
+      expect(result[0].model).toBe('GV80');
+      expect(result[0].isAvailable).toBe(false);
+    });
   });
 
   describe('findOne', () => {
@@ -264,6 +309,75 @@ describe('CarsService', () => {
       mockCarRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(999)).rejects.toThrow(
+        'Car with id 999 not found',
+      );
+    });
+  });
+
+  describe('findOneForEmployees', () => {
+    it('should return a car with clientfile previews', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [genesisGv80Image],
+        isAvailable: true,
+        clientFiles: [
+          {
+            id: 3,
+            status: Status.Pending,
+            user,
+          },
+        ],
+      };
+
+      mockCarRepository.findOne.mockResolvedValue(mockCar);
+
+      const result = await service.findOneForEmployees(1);
+
+      expect(mockCarRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+        relations: ['clientFiles', 'clientFiles.user'],
+      });
+      expect(result.brand).toBe('Genesis');
+      expect(result.model).toBe('GV80');
+      expect(result.clientFiles).toEqual([
+        {
+          id: '3',
+          status: Status.Pending,
+          userId: '2',
+          name: 'Maria',
+          surname: 'Marie',
+        },
+      ]);
+    });
+
+    it('should return a car without clientfile previews', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: [genesisGv80Image],
+        isAvailable: true,
+      };
+
+      mockCarRepository.findOne.mockResolvedValue(mockCar);
+
+      const result = await service.findOneForEmployees(1);
+
+      expect(result.clientFiles).toBeUndefined();
+      expect(result.brand).toBe('Genesis');
+      expect(result.model).toBe('GV80');
+    });
+
+    it('should throw an error when car for employees is not found', async () => {
+      mockCarRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOneForEmployees(999)).rejects.toThrow(
         'Car with id 999 not found',
       );
     });
@@ -325,6 +439,29 @@ describe('CarsService', () => {
       ).rejects.toThrow('Car is not available');
       expect(mockCarRepository.save).not.toHaveBeenCalled();
     });
+
+    it('should update images when car has no images yet', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: undefined,
+      };
+      const updatedCar = {
+        ...mockCar,
+        images: [newImage],
+      };
+
+      mockCarRepository.findOne.mockResolvedValue(mockCar);
+      mockCarRepository.save.mockResolvedValue(updatedCar);
+
+      const result = await service.update(1, { images: [newImage] });
+
+      expect(mockCarRepository.save).toHaveBeenCalledWith(updatedCar);
+      expect(result).toEqual(updatedCar);
+    });
   });
 
   describe('updateService', () => {
@@ -365,6 +502,14 @@ describe('CarsService', () => {
       await expect(service.updateService(1, Service.Sale)).rejects.toThrow(
         'Car is not available',
       );
+      expect(mockCarRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should not update a car service when service is invalid', async () => {
+      await expect(service.updateService(1, 'Rental' as Service)).rejects.toThrow(
+        'Invalid service',
+      );
+      expect(mockCarRepository.findOne).not.toHaveBeenCalled();
       expect(mockCarRepository.save).not.toHaveBeenCalled();
     });
   });
@@ -494,6 +639,25 @@ describe('CarsService', () => {
 
       await expect(
         service.deleteImage(1, 'cars/genesis-gv80-missing.jpg'),
+      ).rejects.toThrow('Could not find image');
+      expect(mockCarRepository.save).not.toHaveBeenCalled();
+      expect(mockSupabaseStorageService.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('should throw an error when car has no images', async () => {
+      const mockCar = {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+        images: undefined,
+      };
+
+      mockCarRepository.findOne.mockResolvedValue(mockCar);
+
+      await expect(
+        service.deleteImage(1, 'cars/genesis-gv80.jpg'),
       ).rejects.toThrow('Could not find image');
       expect(mockCarRepository.save).not.toHaveBeenCalled();
       expect(mockSupabaseStorageService.deleteFile).not.toHaveBeenCalled();

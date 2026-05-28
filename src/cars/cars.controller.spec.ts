@@ -17,6 +17,7 @@ type MockCarsService = {
   findAllByService: jest.Mock;
   findAllByStatus: jest.Mock;
   findOne: jest.Mock;
+  findOneForEmployees: jest.Mock;
   update: jest.Mock;
   updateService: jest.Mock;
   remove: jest.Mock;
@@ -39,6 +40,7 @@ describe('CarsController', () => {
       findAllByService: jest.fn(),
       findAllByStatus: jest.fn(),
       findOne: jest.fn(),
+      findOneForEmployees: jest.fn(),
       update: jest.fn(),
       updateService: jest.fn(),
       remove: jest.fn(),
@@ -112,6 +114,48 @@ describe('CarsController', () => {
     expect(result).toEqual(mockCar);
   });
 
+  it('should create a car without images', async () => {
+    const createCarDto = {
+      brand: 'Genesis',
+      model: 'GV80',
+      price: '75000.00',
+      service: Service.Leasing,
+    };
+    const mockCar = {
+      id: 1,
+      ...createCarDto,
+    };
+
+    mockCarsService.create.mockResolvedValue(mockCar);
+
+    const result = await controller.create(createCarDto, []);
+
+    expect(mockSupabaseStorageService.uploadFile).not.toHaveBeenCalled();
+    expect(mockCarsService.create).toHaveBeenCalledWith(createCarDto);
+    expect(result).toEqual(mockCar);
+  });
+
+  it('should not create a car when image buffer is missing', async () => {
+    const result = controller.create(
+      {
+        brand: 'Genesis',
+        model: 'GV80',
+        price: '75000.00',
+        service: Service.Leasing,
+      },
+      [
+        {
+          originalname: 'genesis-gv80.jpg',
+          mimetype: 'image/jpeg',
+        },
+      ] as unknown as Array<Express.Multer.File>,
+    );
+
+    await expect(result).rejects.toThrow('Image file buffer is missing');
+    expect(mockSupabaseStorageService.uploadFile).not.toHaveBeenCalled();
+    expect(mockCarsService.create).not.toHaveBeenCalled();
+  });
+
   it('should not create a car and throw error', async () => {
     mockCarsService.create.mockRejectedValue(
       new BadRequestException('Invalid service'),
@@ -139,6 +183,32 @@ describe('CarsController', () => {
 
     expect(mockCarsService.findAll).toHaveBeenCalled();
     expect(result).toEqual(mockCars);
+  });
+
+  it('should return relative image URLs with API URL', async () => {
+    const apiUrl = process.env.API_URL;
+    process.env.API_URL = 'https://api.example.com';
+    const mockCars = [
+      {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        images: ['cars/genesis-gv80.jpg'],
+      },
+    ];
+    mockCarsService.findAll.mockResolvedValue(mockCars);
+
+    const result = await controller.findAll();
+
+    expect(result).toEqual([
+      {
+        id: 1,
+        brand: 'Genesis',
+        model: 'GV80',
+        images: ['https://api.example.com/cars/genesis-gv80.jpg'],
+      },
+    ]);
+    process.env.API_URL = apiUrl;
   });
 
   it('should return Supabase image URLs unchanged', async () => {
@@ -251,6 +321,21 @@ describe('CarsController', () => {
     await expect(result).rejects.toHaveProperty('status', 404);
   });
 
+  it('should find one car with clientfiles by id', async () => {
+    const mockCar = {
+      id: 1,
+      brand: 'Genesis',
+      model: 'GV80',
+      clientFiles: [{ id: '3' }],
+    };
+    mockCarsService.findOneForEmployees.mockResolvedValue(mockCar);
+
+    const result = await controller.findOneWithClientfiles(1);
+
+    expect(mockCarsService.findOneForEmployees).toHaveBeenCalledWith(1);
+    expect(result).toEqual(mockCar);
+  });
+
   it('should update one car by id', async () => {
     const updateCarDto = { brand: 'Genesis', model: 'GV80' };
     const images = [
@@ -279,6 +364,39 @@ describe('CarsController', () => {
       images: mockCar.images,
     });
     expect(result).toEqual(mockCar);
+  });
+
+  it('should update one car without images', async () => {
+    const updateCarDto = { brand: 'Genesis', model: 'GV80' };
+    const mockCar = {
+      id: 1,
+      brand: 'Genesis',
+      model: 'GV80',
+    };
+
+    mockCarsService.update.mockResolvedValue(mockCar);
+
+    const result = await controller.update(1, updateCarDto, []);
+
+    expect(mockSupabaseStorageService.uploadFile).not.toHaveBeenCalled();
+    expect(mockCarsService.update).toHaveBeenCalledWith(1, updateCarDto);
+    expect(result).toEqual(mockCar);
+  });
+
+  it('should not update a car when image buffer is missing', async () => {
+    const result = controller.update(
+      1,
+      { brand: 'Genesis' },
+      [
+        {
+          originalname: 'genesis-gv80.jpg',
+          mimetype: 'image/jpeg',
+        },
+      ] as unknown as Array<Express.Multer.File>,
+    );
+
+    await expect(result).rejects.toThrow('Image file buffer is missing');
+    expect(mockCarsService.update).not.toHaveBeenCalled();
   });
 
   it('should update one car service by id', async () => {
