@@ -36,6 +36,10 @@ describe('ClientfileService', () => {
     'https://example.supabase.co/storage/v1/object/public/images/clientfiles/identity-card.jpg';
   const proofOfAddress =
     'https://example.supabase.co/storage/v1/object/public/images/clientfiles/proof-of-address.jpg';
+  const updatedIdentityCard =
+    'https://example.supabase.co/storage/v1/object/public/images/clientfiles/identity-card-updated.jpg';
+  const updatedProofOfAddress =
+    'https://example.supabase.co/storage/v1/object/public/images/clientfiles/proof-of-address-updated.jpg';
   const birthday = new Date('1994-04-12');
   const dateSubmitted = new Date('2026-05-06');
 
@@ -187,6 +191,44 @@ describe('ClientfileService', () => {
       );
       expect(mockClientfileRepository.create).not.toHaveBeenCalled();
       expect(mockClientfileRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should not create a clientfile when user already has a pending file', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue(pendingClientfile);
+
+      await expect(
+        service.create({
+          carId: '1',
+          userId: '2',
+          identityCard,
+          proofOfAddress,
+          insurance: 'true',
+          roadsideAssistance: 'false',
+          maintenance: 'true',
+          technicalControl: 'false',
+        }),
+      ).rejects.toThrow('User already has a pending clientfile');
+      expect(mockCarRepository.findOne).not.toHaveBeenCalled();
+      expect(mockClientfileRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should not create a clientfile when car is not found', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue(null);
+      mockCarRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.create({
+          carId: '1',
+          userId: '2',
+          identityCard,
+          proofOfAddress,
+          insurance: 'true',
+          roadsideAssistance: 'false',
+          maintenance: 'true',
+          technicalControl: 'false',
+        }),
+      ).rejects.toThrow('Car with id 1 not found');
+      expect(mockClientfileRepository.create).not.toHaveBeenCalled();
     });
 
     it('should require options when creating a leasing clientfile', async () => {
@@ -362,6 +404,36 @@ describe('ClientfileService', () => {
         'User cannot access other user file',
       );
     });
+
+    it('should return current user clientfile without user data', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue(pendingClientfile);
+
+      const result = await service.findOne(UserRole.User, user.id);
+
+      expect(mockClientfileRepository.findOne).toHaveBeenCalledWith({
+        where: { userId: user.id },
+        relations: ['car'],
+      });
+      expect(result.user).toBeUndefined();
+      expect(result.car?.brand).toBe('Genesis');
+      expect(result.car?.model).toBe('GV80');
+    });
+
+    it('should throw when current user clientfile is not found', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne(UserRole.User, user.id)).rejects.toThrow(
+        'Clientfile not found',
+      );
+    });
+
+    it('should throw when clientfile by id is not found', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne(UserRole.Employee, user.id, 999)).rejects.toThrow(
+        'Clientfile with id 999 not found',
+      );
+    });
   });
 
   describe('update', () => {
@@ -391,6 +463,66 @@ describe('ClientfileService', () => {
       expect(result.car?.model).toBe('GV80');
     });
 
+    it('should update clientfile documents and leasing options', async () => {
+      const savedClientfile = {
+        ...pendingClientfile,
+        identityCard: updatedIdentityCard,
+        proofOfAddress: updatedProofOfAddress,
+        roadsideAssistance: true,
+        maintenance: false,
+        technicalControl: true,
+      };
+
+      mockClientfileRepository.findOne
+        .mockResolvedValueOnce(pendingClientfile)
+        .mockResolvedValueOnce(pendingClientfile)
+        .mockResolvedValueOnce(savedClientfile);
+      mockClientfileRepository.save.mockResolvedValue(savedClientfile);
+
+      const result = await service.update(UserRole.User, user.id, 3, {
+        identityCard: updatedIdentityCard,
+        proofOfAddress: updatedProofOfAddress,
+        roadsideAssistance: 'true',
+        maintenance: 'false',
+        technicalControl: 'true',
+      });
+
+      expect(mockClientfileRepository.save).toHaveBeenCalledWith({
+        ...pendingClientfile,
+        identityCard: updatedIdentityCard,
+        proofOfAddress: updatedProofOfAddress,
+        roadsideAssistance: true,
+        maintenance: false,
+        technicalControl: true,
+      });
+      expect(result.roadsideAssistance).toBe(true);
+      expect(result.maintenance).toBe(false);
+      expect(result.technicalControl).toBe(true);
+    });
+
+    it('should update a sale clientfile without options', async () => {
+      mockClientfileRepository.findOne
+        .mockResolvedValueOnce(saleClientfile)
+        .mockResolvedValueOnce(saleClientfile)
+        .mockResolvedValueOnce(saleClientfile);
+      mockClientfileRepository.save.mockResolvedValue(saleClientfile);
+
+      const result = await service.update(UserRole.User, user.id, 3, {
+        identityCard,
+      });
+
+      expect(mockClientfileRepository.save).toHaveBeenCalledWith({
+        ...saleClientfile,
+        identityCard,
+        insurance: false,
+        roadsideAssistance: false,
+        maintenance: false,
+        technicalControl: false,
+      });
+      expect(result.insurance).toBeUndefined();
+      expect(result.car?.service).toBe(Service.Sale);
+    });
+
     it('should not update accepted clientfiles', async () => {
       mockClientfileRepository.findOne.mockResolvedValue({
         ...pendingClientfile,
@@ -400,6 +532,42 @@ describe('ClientfileService', () => {
       await expect(
         service.update(UserRole.User, user.id, 3, { insurance: 'false' }),
       ).rejects.toThrow('Cannot update already accepted client file');
+      expect(mockClientfileRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should not update canceled clientfiles', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue({
+        ...pendingClientfile,
+        status: Status.Canceled,
+      });
+
+      await expect(
+        service.update(UserRole.User, user.id, 3, { insurance: 'false' }),
+      ).rejects.toThrow('Cannot update canceled client file');
+      expect(mockClientfileRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should not update rejected clientfiles', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue({
+        ...pendingClientfile,
+        status: Status.Rejected,
+      });
+
+      await expect(
+        service.update(UserRole.User, user.id, 3, { insurance: 'false' }),
+      ).rejects.toThrow('Cannot update already rejected client file');
+      expect(mockClientfileRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should block users from updating another user clientfile', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue({
+        ...pendingClientfile,
+        userId: 99,
+      });
+
+      await expect(
+        service.update(UserRole.User, user.id, 3, { insurance: 'false' }),
+      ).rejects.toThrow('User cannot update another user file');
       expect(mockClientfileRepository.save).not.toHaveBeenCalled();
     });
 
@@ -471,6 +639,14 @@ describe('ClientfileService', () => {
       expect(mockCarRepository.save).not.toHaveBeenCalled();
     });
 
+    it('should not update status when status is invalid', async () => {
+      await expect(
+        service.updateStatus(3, 'Unknown' as Status),
+      ).rejects.toThrow('Invalid status');
+      expect(mockClientfileRepository.findOne).not.toHaveBeenCalled();
+      expect(mockClientfileRepository.save).not.toHaveBeenCalled();
+    });
+
     it('should not update status when the car is unavailable', async () => {
       mockClientfileRepository.findOne.mockResolvedValue({
         ...pendingClientfile,
@@ -485,6 +661,31 @@ describe('ClientfileService', () => {
       );
       expect(mockClientfileRepository.save).not.toHaveBeenCalled();
       expect(mockCarRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should load the car when updating status without a car relation', async () => {
+      const clientfile = {
+        ...pendingClientfile,
+        car: undefined,
+      };
+
+      mockClientfileRepository.findOne.mockResolvedValue(clientfile);
+      mockCarRepository.findOne.mockResolvedValue(genesisGv80);
+      mockClientfileRepository.save.mockResolvedValue({
+        ...clientfile,
+        car: genesisGv80,
+        status: Status.Rejected,
+      });
+
+      const result = await service.updateStatus(3, Status.Rejected);
+
+      expect(mockCarRepository.findOne).toHaveBeenCalledWith({
+        where: { id: genesisGv80.id },
+      });
+      expect(mockCarRepository.save).not.toHaveBeenCalled();
+      expect(result.status).toBe(Status.Rejected);
+      expect(result.car?.brand).toBe('Genesis');
+      expect(result.car?.model).toBe('GV80');
     });
 
     it('should not return options when updating status for a sale clientfile', async () => {
@@ -553,6 +754,45 @@ describe('ClientfileService', () => {
         service.cancelSubmission(user.id, UserRole.User),
       ).rejects.toThrow('No pending client file');
       expect(mockClientfileRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should block users from canceling another user submission', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue({
+        ...pendingClientfile,
+        userId: 99,
+      });
+
+      await expect(
+        service.cancelSubmission(user.id, UserRole.User),
+      ).rejects.toThrow('User cannot cancel anoter user submission');
+      expect(mockClientfileRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a clientfile by id', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue(pendingClientfile);
+      mockClientfileRepository.remove.mockResolvedValue(pendingClientfile);
+
+      const result = await service.remove(3);
+
+      expect(mockClientfileRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 3 },
+        relations: [],
+      });
+      expect(mockClientfileRepository.remove).toHaveBeenCalledWith(
+        pendingClientfile,
+      );
+      expect(result).toEqual(pendingClientfile);
+    });
+
+    it('should throw when clientfile to remove is not found', async () => {
+      mockClientfileRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(999)).rejects.toThrow(
+        'Clientfile with id 999 not found',
+      );
+      expect(mockClientfileRepository.remove).not.toHaveBeenCalled();
     });
   });
 });

@@ -177,6 +177,37 @@ describe('ClientfileController', () => {
     expect(mockClientfileService.create).not.toHaveBeenCalled();
   });
 
+  it('should not create a clientfile without required files', async () => {
+    mockClientfileService.checkCreate.mockResolvedValue(undefined);
+
+    const result = controller.create(
+      {
+        carId: '1',
+        insurance: 'true',
+        roadsideAssistance: 'false',
+        maintenance: 'true',
+        technicalControl: 'false',
+      },
+      {
+        identityCard: [
+          {
+            originalname: 'identity-card.jpg',
+            buffer: Buffer.from('identity'),
+            mimetype: 'image/jpeg',
+          },
+        ],
+      } as unknown as {
+        identityCard?: Array<Express.Multer.File>;
+        proofOfAddress?: Array<Express.Multer.File>;
+      },
+      request,
+    );
+
+    await expect(result).rejects.toHaveProperty('status', 400);
+    expect(mockSupabaseStorageService.uploadFile).not.toHaveBeenCalled();
+    expect(mockClientfileService.create).not.toHaveBeenCalled();
+  });
+
   it('should return all clientfiles', async () => {
     const mockClientfiles = [
       {
@@ -200,6 +231,19 @@ describe('ClientfileController', () => {
     expect(mockClientfileService.findAll).toHaveBeenCalledWith(
       UserRole.Employee,
       1,
+    );
+    expect(result).toEqual(mockClientfiles);
+  });
+
+  it('should return current user clientfiles', async () => {
+    const mockClientfiles = [{ id: '3', status: Status.Pending }];
+    mockClientfileService.findAll.mockResolvedValue(mockClientfiles);
+
+    const result = await controller.findMine(request);
+
+    expect(mockClientfileService.findAll).toHaveBeenCalledWith(
+      UserRole.User,
+      2,
     );
     expect(result).toEqual(mockClientfiles);
   });
@@ -277,6 +321,65 @@ describe('ClientfileController', () => {
       },
     );
     expect(result).toEqual(updatedClientfile);
+  });
+
+  it('should update a clientfile proof of address', async () => {
+    const files = {
+      proofOfAddress: [
+        {
+          originalname: 'proof-of-address.jpg',
+          buffer: Buffer.from('address'),
+          mimetype: 'image/jpeg',
+        },
+      ],
+    } as unknown as {
+      identityCard?: Array<Express.Multer.File>;
+      proofOfAddress?: Array<Express.Multer.File>;
+    };
+    const updatedClientfile = {
+      id: '3',
+      proofOfAddress,
+    };
+
+    mockClientfileService.checkUpdate.mockResolvedValue(undefined);
+    mockSupabaseStorageService.uploadFile.mockResolvedValue(proofOfAddress);
+    mockClientfileService.update.mockResolvedValue(updatedClientfile);
+
+    const result = await controller.update(3, {}, files, request);
+
+    expect(mockClientfileService.update).toHaveBeenCalledWith(
+      UserRole.User,
+      2,
+      3,
+      {
+        proofOfAddress,
+      },
+    );
+    expect(result).toEqual(updatedClientfile);
+  });
+
+  it('should not update when file buffer is missing', async () => {
+    mockClientfileService.checkUpdate.mockResolvedValue(undefined);
+
+    const result = controller.update(
+      3,
+      {},
+      {
+        identityCard: [
+          {
+            originalname: 'identity-card.jpg',
+            mimetype: 'image/jpeg',
+          },
+        ],
+      } as unknown as {
+        identityCard?: Array<Express.Multer.File>;
+        proofOfAddress?: Array<Express.Multer.File>;
+      },
+      request,
+    );
+
+    await expect(result).rejects.toHaveProperty('status', 400);
+    expect(mockClientfileService.update).not.toHaveBeenCalled();
   });
 
   it('should not upload files when user cannot update a clientfile', async () => {
