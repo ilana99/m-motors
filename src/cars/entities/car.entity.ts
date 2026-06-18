@@ -26,7 +26,7 @@ export class CarEntity {
   })
   service: Service;
 
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   images: string[];
 
   @OneToMany(() => ClientFileEntity, (clientFile) => clientFile.car)
